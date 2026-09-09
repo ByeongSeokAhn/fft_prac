@@ -624,7 +624,25 @@
     // Data State
     let stashedWaves = []; // Array of { id, name, A, f, T, phase, color, checked }
     let activeLoadedWaves = []; // Currently loaded waves for plotting/FFT
-    let isCombinedMode = false;    // Synchronize Parameter Inputs
+    let isCombinedMode = false;
+    let hasRunFFT = false;
+    let nextWaveId = 1;
+
+    // Time domain sampling constants
+    const duration = 8.0; // 8 seconds default
+    const fs = 256;       // Sampling frequency = 256 Hz
+    const N = 2048;       // N = 8 * 256 = 2048 points (Power of 2 for FFT)
+
+    function resizeCanvases() {
+      [canvasTime, canvasFFT].forEach(c => {
+        c.width = c.clientWidth * window.devicePixelRatio;
+        c.height = c.clientHeight * window.devicePixelRatio;
+      });
+      drawAll();
+    }
+    window.addEventListener('resize', resizeCanvases);
+
+    // Synchronize Parameter Inputs
     function updateFormula() {
       const A = parseFloat(sliderA.value) || 0;
       const f = parseFloat(sliderFreq.value) || 1;
