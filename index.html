@@ -874,12 +874,14 @@
     });
 
     // Card 2 Sampling Handlers
-    function syncFsLabels(fsVal, syncDtInputs = true) {
+    function syncFsLabels(fsVal, syncDtInputs = true, syncSelfInput = true) {
       fsVal = Math.max(0.1, Math.min(50.0, fsVal));
       const dtVal = 1.0 / fsVal;
 
       sliderFs.value = fsVal;
-      numFs.value = fsVal.toFixed(1);
+      if (syncSelfInput) {
+        numFs.value = fsVal.toFixed(1);
+      }
 
       if (syncDtInputs) {
         sliderDt.value = dtVal.toFixed(3);
@@ -887,12 +889,14 @@
       }
     }
 
-    function syncDtLabels(dtVal, syncFsInputs = true) {
+    function syncDtLabels(dtVal, syncFsInputs = true, syncSelfInput = true) {
       dtVal = Math.max(0.02, Math.min(2.0, dtVal));
       const fsVal = 1.0 / dtVal;
 
       sliderDt.value = dtVal.toFixed(3);
-      numDt.value = dtVal.toFixed(3);
+      if (syncSelfInput) {
+        numDt.value = dtVal.toFixed(3);
+      }
 
       if (syncFsInputs) {
         sliderFs.value = fsVal.toFixed(1);
@@ -901,33 +905,33 @@
     }
 
     sliderFs.addEventListener('input', () => {
-      syncFsLabels(parseFloat(sliderFs.value), true);
+      syncFsLabels(parseFloat(sliderFs.value), true, true);
     });
     numFs.addEventListener('input', () => {
       const valStr = numFs.value;
-      if (valStr === '' || valStr === '.') return;
+      if (valStr === '' || valStr.endsWith('.')) return;
       const fs = parseFloat(valStr);
-      if (!isNaN(fs) && fs > 0) syncFsLabels(fs, true);
+      if (!isNaN(fs) && fs > 0) syncFsLabels(fs, true, false);
     });
     numFs.addEventListener('blur', () => {
       let fs = parseFloat(numFs.value);
       if (isNaN(fs)) fs = 10.0;
-      syncFsLabels(fs, true);
+      syncFsLabels(fs, true, true);
     });
 
     sliderDt.addEventListener('input', () => {
-      syncDtLabels(parseFloat(sliderDt.value), true);
+      syncDtLabels(parseFloat(sliderDt.value), true, true);
     });
     numDt.addEventListener('input', () => {
       const valStr = numDt.value;
-      if (valStr === '' || valStr === '.') return;
+      if (valStr === '' || valStr.endsWith('.')) return;
       const dt = parseFloat(valStr);
-      if (!isNaN(dt) && dt > 0) syncDtLabels(dt, true);
+      if (!isNaN(dt) && dt > 0) syncDtLabels(dt, true, false);
     });
     numDt.addEventListener('blur', () => {
       let dt = parseFloat(numDt.value);
       if (isNaN(dt)) dt = 0.1;
-      syncDtLabels(dt, true);
+      syncDtLabels(dt, true, true);
     });
 
     function syncTStartLabels(tVal) {
