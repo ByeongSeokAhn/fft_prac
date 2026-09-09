@@ -428,36 +428,10 @@
         </div>
       </div>
 
-      <!-- 2. Waveform Stash Manager Card -->
+      <!-- 2. Digital Sampling Control Card -->
       <div class="card">
         <div class="card-title">
-          <span>2. 임시 저장 파형 목록</span>
-          <span style="font-size:0.75rem; color:var(--text-muted);" id="stashCount">0개 저장됨</span>
-        </div>
-
-        <div class="stash-toolbar">
-          <label style="cursor:pointer; display:flex; align-items:center; gap:0.4rem;">
-            <input type="checkbox" id="chkSelectAll" checked> 전체 선택/해제
-          </label>
-        </div>
-
-        <div class="stash-list" id="stashList">
-          <!-- Stashed items rendered dynamically -->
-        </div>
-
-        <div class="btn-grid">
-          <button class="btn btn-secondary" id="btnLoadSelected">📥 선택 파형 불러오기</button>
-          <button class="btn btn-danger" id="btnDeleteSelected">🗑️ 선택 삭제</button>
-          <button class="btn btn-purple btn-full" id="btnCombine">⚡ 선택 파형 합성하기</button>
-          <button class="btn btn-emerald btn-full" id="btnSaveCombined">✨ 합성 파형 임시 저장함에 추가</button>
-          <button class="btn btn-primary btn-full" id="btnFFT" style="background: linear-gradient(135deg, #0284c7, #0369a1);">📊 FFT 분석 실행 (진폭 스펙트럼)</button>
-        </div>
-      </div>
-
-      <!-- 3. Digital Sampling Control Card -->
-      <div class="card">
-        <div class="card-title">
-          <span>3. 디지탈 샘플링 설정</span>
+          <span>2. 디지탈 샘플링 설정</span>
           <span style="font-size:0.75rem; color:var(--amber);" id="samplingStatusBadge">● 미실행</span>
         </div>
 
@@ -495,6 +469,32 @@
           <button class="btn btn-emerald btn-full" id="btnRunSampling">📍 신호 샘플하기 (샘플 점 추출)</button>
           <button class="btn btn-purple" id="btnStashSampled">💾 샘플 파형 저장</button>
           <button class="btn btn-secondary" id="btnClearSampling">❌ 샘플링 해제</button>
+        </div>
+      </div>
+
+      <!-- 3. Waveform Stash Manager Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>3. 임시 저장 파형 목록</span>
+          <span style="font-size:0.75rem; color:var(--text-muted);" id="stashCount">0개 저장됨</span>
+        </div>
+
+        <div class="stash-toolbar">
+          <label style="cursor:pointer; display:flex; align-items:center; gap:0.4rem;">
+            <input type="checkbox" id="chkSelectAll" checked> 전체 선택/해제
+          </label>
+        </div>
+
+        <div class="stash-list" id="stashList">
+          <!-- Stashed items rendered dynamically -->
+        </div>
+
+        <div class="btn-grid">
+          <button class="btn btn-secondary" id="btnLoadSelected">📥 선택 파형 불러오기</button>
+          <button class="btn btn-danger" id="btnDeleteSelected">🗑️ 선택 삭제</button>
+          <button class="btn btn-purple btn-full" id="btnCombine">⚡ 선택 파형 합성하기</button>
+          <button class="btn btn-emerald btn-full" id="btnSaveCombined">✨ 합성 파형 임시 저장함에 추가</button>
+          <button class="btn btn-primary btn-full" id="btnFFT" style="background: linear-gradient(135deg, #0284c7, #0369a1);">📊 FFT 분석 실행 (진폭 스펙트럼)</button>
         </div>
       </div>
 
@@ -955,7 +955,6 @@
 
       stashedWaves.push(sampledWave);
       renderStashList();
-      alert(`${sampledWave.name}이(가) 임시 저장함에 추가되었습니다.`);
     });
 
     // Helper to evaluate waveform value at time t
@@ -1398,27 +1397,10 @@
         const times = currentSampledData.times;
         const vals = currentSampledData.values;
 
-        // 1. Draw Stem Lines from y = 0
-        ctx.strokeStyle = 'rgba(250, 204, 21, 0.45)';
-        ctx.lineWidth = 1.2 * window.devicePixelRatio;
-        ctx.setLineDash([3, 3]);
-
-        for (let k = 0; k < times.length; k++) {
-          const tVal = times[k];
-          const yVal = vals[k];
-          const px = marginL + (tVal / duration) * plotW;
-          const py = centerY - (yVal / maxRangeY) * (plotH / 2);
-
-          ctx.beginPath();
-          ctx.moveTo(px, centerY);
-          ctx.lineTo(px, py);
-          ctx.stroke();
-        }
-        ctx.setLineDash([]);
-
-        // 2. Draw Reconstructed Discrete Line connecting sample dots
+        // 1. Draw Thin Dashed Line connecting sample dots
         ctx.strokeStyle = '#facc15';
-        ctx.lineWidth = 2 * window.devicePixelRatio;
+        ctx.lineWidth = 1.5 * window.devicePixelRatio;
+        ctx.setLineDash([4, 4]);
         ctx.beginPath();
 
         for (let k = 0; k < times.length; k++) {
@@ -1431,8 +1413,9 @@
           else ctx.lineTo(px, py);
         }
         ctx.stroke();
+        ctx.setLineDash([]);
 
-        // 3. Draw Solid Circle Dots at sample points
+        // 2. Draw Solid Circle Dots at sample points
         for (let k = 0; k < times.length; k++) {
           const tVal = times[k];
           const yVal = vals[k];
