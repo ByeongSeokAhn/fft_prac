@@ -981,7 +981,8 @@
     let dragTarget = null; // 'left', 'right', 'window'
     let dragInitialX = 0;
     let dragInitialTStart = 0;
-    let dragInitialTLen = 0;
+    let dragInitialTLen = 8.0;
+    let dragInitialTEnd = 8.0;
 
     function getCanvasCoords(e) {
       const rect = canvasTime.getBoundingClientRect();
@@ -998,10 +999,9 @@
       const marginL = 55 * window.devicePixelRatio;
       const marginR = 30 * window.devicePixelRatio;
       const plotW = canvasTime.width - marginL - marginR;
-      const duration = 4.0;
 
       const tStartVal = parseFloat(sliderTStart.value) || 0.0;
-      const tLenVal = parseFloat(sliderTLen.value) || 4.0;
+      const tLenVal = parseFloat(sliderTLen.value) || 8.0;
       const tEndVal = Math.min(duration, tStartVal + tLenVal);
 
       const xLeft = marginL + (tStartVal / duration) * plotW;
@@ -1014,7 +1014,7 @@
       if (isDraggingTimeWin) return;
       const { x } = getCanvasCoords(e);
       const { xLeft, xRight } = getTimeWinPixelCoords();
-      const tol = 10 * window.devicePixelRatio;
+      const tol = 20 * window.devicePixelRatio;
 
       if (Math.abs(x - xLeft) <= tol || Math.abs(x - xRight) <= tol) {
         canvasTime.style.cursor = 'ew-resize';
@@ -1030,11 +1030,12 @@
     function startDragTimeWin(e) {
       const { x, clientX } = getCanvasCoords(e);
       const { xLeft, xRight } = getTimeWinPixelCoords();
-      const tol = 12 * window.devicePixelRatio;
+      const tol = 22 * window.devicePixelRatio;
 
       dragInitialX = clientX;
       dragInitialTStart = parseFloat(sliderTStart.value) || 0.0;
-      dragInitialTLen = parseFloat(sliderTLen.value) || 4.0;
+      dragInitialTLen = parseFloat(sliderTLen.value) || 8.0;
+      dragInitialTEnd = Math.min(duration, dragInitialTStart + dragInitialTLen);
 
       if (Math.abs(x - xLeft) <= tol) {
         isDraggingTimeWin = true;
@@ -1060,7 +1061,6 @@
       const marginL = 55 * window.devicePixelRatio;
       const marginR = 30 * window.devicePixelRatio;
       const plotW = canvasTime.width - marginL - marginR;
-      const duration = 4.0;
 
       let clientX = e.clientX;
       if (e.touches && e.touches.length > 0) {
@@ -1071,13 +1071,9 @@
 
       const tCurr = Math.max(0.0, Math.min(duration, ((currentCanvasX - marginL) / plotW) * duration));
 
-      let tStartVal = parseFloat(sliderTStart.value) || 0.0;
-      let tLenVal = parseFloat(sliderTLen.value) || 4.0;
-      let tEndVal = tStartVal + tLenVal;
-
       if (dragTarget === 'left') {
         const t1 = tCurr;
-        const t2 = tEndVal;
+        const t2 = dragInitialTEnd;
         const newStart = Math.min(t1, t2);
         const newEnd = Math.max(t1, t2);
         const newLen = Math.max(0.1, newEnd - newStart);
@@ -1085,7 +1081,7 @@
         syncTStartLabels(newStart);
         syncTLenLabels(newLen);
       } else if (dragTarget === 'right') {
-        const t1 = tStartVal;
+        const t1 = dragInitialTStart;
         const t2 = tCurr;
         const newStart = Math.min(t1, t2);
         const newEnd = Math.max(t1, t2);
@@ -1216,14 +1212,29 @@
         const times = wave.sampleTimes;
         const vals = wave.sampleValues;
         if (!times || times.length === 0) return 0;
-        if (tVal < times[0] || tVal > times[times.length - 1]) return 0;
-        for (let i = 0; i < times.length - 1; i++) {
-          if (tVal >= times[i] && tVal <= times[i + 1]) {
-            const ratio = (tVal - times[i]) / (times[i + 1] - times[i]);
-            return vals[i] + ratio * (vals[i + 1] - vals[i]);
+        const eps = 1e-6;
+        if (tVal < times[0] - eps || tVal > times[times.length - 1] + eps) return 0;
+        if (tVal <= times[0]) return vals[0];
+        if (tVal >= times[times.length - 1]) return vals[vals.length - 1];
+
+        // Binary search for exact interval
+        let low = 0, high = times.length - 1;
+        while (low <= high) {
+          let mid = (low + high) >> 1;
+          if (times[mid] <= tVal) {
+            low = mid + 1;
+          } else {
+            high = mid - 1;
           }
         }
-        return 0;
+        let idx = Math.max(0, high);
+        if (idx >= times.length - 1) idx = times.length - 2;
+        const t0 = times[idx], t1 = times[idx + 1];
+        const v0 = vals[idx], v1 = vals[idx + 1];
+        const dtSeg = t1 - t0;
+        if (Math.abs(dtSeg) < 1e-12) return v0;
+        const ratio = (tVal - t0) / dtSeg;
+        return v0 + ratio * (v1 - v0);
       } else if (wave.isComposite) {
         let sum = 0;
         wave.components.forEach(c => {
@@ -1816,20 +1827,32 @@
       }
 
       if (activeLoadedWaves.length === 0) {
-        // FFT of Single Live Wave
-        const A = parseFloat(sliderA.value);
-        const f = parseFloat(sliderFreq.value);
-        const phiRad = (parseFloat(sliderPhase.value) * Math.PI) / 180.0;
-
+        // FFT of Single Live Wave (or Live Sampled Wave)
         const signalVals = new Float64Array(N);
-        for (let i = 0; i < N; i++) {
-          const tVal = (i / N) * duration;
-          signalVals[i] = A * Math.sin(2 * Math.PI * f * tVal + phiRad);
+
+        if (isSamplingActive && currentSampledData && currentSampledData.times.length > 0) {
+          const dummyWave = {
+            isSampled: true,
+            sampleTimes: currentSampledData.times,
+            sampleValues: currentSampledData.values
+          };
+          for (let i = 0; i < N; i++) {
+            const tVal = (i / N) * duration;
+            signalVals[i] = getWaveVal(dummyWave, tVal);
+          }
+        } else {
+          const A = parseFloat(sliderA.value);
+          const f = parseFloat(sliderFreq.value);
+          const phiRad = (parseFloat(sliderPhase.value) * Math.PI) / 180.0;
+          for (let i = 0; i < N; i++) {
+            const tVal = (i / N) * duration;
+            signalVals[i] = A * Math.sin(2 * Math.PI * f * tVal + phiRad);
+          }
         }
 
         const spectrum = runFFT(signalVals);
 
-        ctx.strokeStyle = '#38bdf8';
+        ctx.strokeStyle = (isSamplingActive ? '#facc15' : '#38bdf8');
         ctx.lineWidth = 2.5 * window.devicePixelRatio;
         ctx.beginPath();
 
@@ -1846,10 +1869,16 @@
         }
         ctx.stroke();
 
+        const fLive = parseFloat(sliderFreq.value);
+        const aLive = parseFloat(sliderA.value);
+        const infoStr = isSamplingActive
+          ? `샘플 파형 FFT 스펙트럼 (fs=${currentSampledData.fs.toFixed(1)}Hz, N=${currentSampledData.times.length}개)`
+          : `단일 파형 FFT 스펙트럼 (Peak at ${fLive.toFixed(2)}Hz, Amp=${aLive.toFixed(2)})`;
+
         legendFFT.innerHTML = `
           <div class="legend-item">
-            <div class="legend-color" style="background:#38bdf8;"></div>
-            <span>단일 파형 FFT 스펙트럼 (Peak at ${f.toFixed(2)}Hz, Amp=${A.toFixed(2)})</span>
+            <div class="legend-color" style="background:${isSamplingActive ? '#facc15' : '#38bdf8'};"></div>
+            <span>${infoStr}</span>
           </div>
         `;
       } else if (!isCombinedMode) {
