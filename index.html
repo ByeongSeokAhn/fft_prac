@@ -1851,7 +1851,7 @@
       ctx.strokeRect(marginL, marginT, plotW, plotH);
 
       const maxFreqView = 15.0; // 0 ~ 15 Hz view
-      const maxAmpView = 2.5;   // 0 ~ 2.5 Spectral amplitude
+      const maxAmpView = 5.0;   // 0 ~ 5.0 Spectral amplitude (matches max amplitude A=5.0)
 
       // X-axis ticks (0 ~ 15 Hz)
       ctx.fillStyle = '#94a3b8';
@@ -1867,9 +1867,9 @@
         ctx.fillText(`${freq}Hz`, px, marginT + plotH + 20 * window.devicePixelRatio);
       }
 
-      // Y-axis ticks (0.0 ~ 2.5)
+      // Y-axis ticks (0.0 ~ 5.0)
       ctx.textAlign = 'right';
-      for (let ampVal = 0.0; ampVal <= 2.5; ampVal += 0.5) {
+      for (let ampVal = 0.0; ampVal <= 5.0; ampVal += 1.0) {
         const py = marginT + plotH - (ampVal / maxAmpView) * plotH;
         ctx.beginPath();
         ctx.moveTo(marginL - 5 * window.devicePixelRatio, py);
