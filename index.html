@@ -454,6 +454,50 @@
         </div>
       </div>
 
+      <!-- 3. Digital Sampling Control Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>3. 디지탈 샘플링 설정</span>
+          <span style="font-size:0.75rem; color:var(--amber);" id="samplingStatusBadge">● 미실행</span>
+        </div>
+
+        <!-- Sampling Frequency fs -->
+        <div class="control-group">
+          <label>샘플링 주파수 (f<sub>s</sub>): <span class="val" id="valFs">10.0 Hz</span></label>
+          <div class="input-row">
+            <input type="range" id="sliderFs" min="0.5" max="50.0" step="0.5" value="10.0">
+            <input type="number" id="numFs" min="0.5" max="50.0" step="any" value="10.0">
+          </div>
+          <div style="font-size:0.75rem; color:var(--text-dim); margin-top:0.2rem;" id="valDtInfo">
+            샘플링 간격 Δt = 0.100 s
+          </div>
+        </div>
+
+        <!-- Start Time t_start -->
+        <div class="control-group">
+          <label>시작 시간 (t<sub>start</sub>): <span class="val" id="valTStart">0.0 s</span></label>
+          <div class="input-row">
+            <input type="range" id="sliderTStart" min="0.0" max="3.5" step="0.1" value="0.0">
+            <input type="number" id="numTStart" min="0.0" max="3.5" step="any" value="0.0">
+          </div>
+        </div>
+
+        <!-- Sample Length T_len -->
+        <div class="control-group">
+          <label>샘플 길이 (T<sub>len</sub>): <span class="val" id="valTLen">4.0 s</span></label>
+          <div class="input-row">
+            <input type="range" id="sliderTLen" min="0.2" max="4.0" step="0.1" value="4.0">
+            <input type="number" id="numTLen" min="0.2" max="4.0" step="any" value="4.0">
+          </div>
+        </div>
+
+        <div class="btn-grid">
+          <button class="btn btn-emerald btn-full" id="btnRunSampling">📍 신호 샘플하기 (샘플 점 추출)</button>
+          <button class="btn btn-purple" id="btnStashSampled">💾 샘플 파형 저장</button>
+          <button class="btn btn-secondary" id="btnClearSampling">❌ 샘플링 해제</button>
+        </div>
+      </div>
+
     </div>
 
     <!-- Right Visualization Panel -->
@@ -543,6 +587,28 @@
     const btnCombine = document.getElementById('btnCombine');
     const btnSaveCombined = document.getElementById('btnSaveCombined');
     const btnFFT = document.getElementById('btnFFT');
+
+    // Sampling Elements
+    const sliderFs = document.getElementById('sliderFs');
+    const numFs = document.getElementById('numFs');
+    const valFs = document.getElementById('valFs');
+    const valDtInfo = document.getElementById('valDtInfo');
+
+    const sliderTStart = document.getElementById('sliderTStart');
+    const numTStart = document.getElementById('numTStart');
+    const valTStart = document.getElementById('valTStart');
+
+    const sliderTLen = document.getElementById('sliderTLen');
+    const numTLen = document.getElementById('numTLen');
+    const valTLen = document.getElementById('valTLen');
+
+    const btnRunSampling = document.getElementById('btnRunSampling');
+    const btnStashSampled = document.getElementById('btnStashSampled');
+    const btnClearSampling = document.getElementById('btnClearSampling');
+    const samplingStatusBadge = document.getElementById('samplingStatusBadge');
+
+    let isSamplingActive = false;
+    let currentSampledData = null;
 
     const canvasTime = document.getElementById('canvasTime');
     const ctxTime = canvasTime.getContext('2d');
@@ -744,9 +810,169 @@
       drawAll();
     });
 
+    // Card 3 Sampling Handlers
+    function syncFsLabels(fsVal) {
+      fsVal = Math.max(0.1, Math.min(50.0, fsVal));
+      sliderFs.value = fsVal;
+      valFs.textContent = `${fsVal.toFixed(1)} Hz`;
+      valDtInfo.textContent = `샘플링 간격 Δt = ${(1.0 / fsVal).toFixed(3)} s`;
+    }
+
+    sliderFs.addEventListener('input', () => {
+      syncFsLabels(parseFloat(sliderFs.value));
+    });
+    numFs.addEventListener('input', () => {
+      const valStr = numFs.value;
+      if (valStr === '' || valStr === '.') return;
+      const fs = parseFloat(valStr);
+      if (!isNaN(fs) && fs > 0) syncFsLabels(fs);
+    });
+    numFs.addEventListener('blur', () => {
+      let fs = parseFloat(numFs.value);
+      if (isNaN(fs)) fs = 10.0;
+      syncFsLabels(fs);
+      numFs.value = fs.toFixed(1);
+    });
+
+    function syncTStartLabels(tVal) {
+      tVal = Math.max(0.0, Math.min(3.5, tVal));
+      sliderTStart.value = tVal;
+      valTStart.textContent = `${tVal.toFixed(1)} s`;
+    }
+    sliderTStart.addEventListener('input', () => {
+      syncTStartLabels(parseFloat(sliderTStart.value));
+    });
+    numTStart.addEventListener('input', () => {
+      const valStr = numTStart.value;
+      if (valStr === '' || valStr === '.') return;
+      const t = parseFloat(valStr);
+      if (!isNaN(t)) syncTStartLabels(t);
+    });
+    numTStart.addEventListener('blur', () => {
+      let t = parseFloat(numTStart.value);
+      if (isNaN(t)) t = 0.0;
+      syncTStartLabels(t);
+      numTStart.value = t.toFixed(1);
+    });
+
+    function syncTLenLabels(tVal) {
+      tVal = Math.max(0.1, Math.min(4.0, tVal));
+      sliderTLen.value = tVal;
+      valTLen.textContent = `${tVal.toFixed(1)} s`;
+    }
+    sliderTLen.addEventListener('input', () => {
+      syncTLenLabels(parseFloat(sliderTLen.value));
+    });
+    numTLen.addEventListener('input', () => {
+      const valStr = numTLen.value;
+      if (valStr === '' || valStr === '.') return;
+      const t = parseFloat(valStr);
+      if (!isNaN(t)) syncTLenLabels(t);
+    });
+    numTLen.addEventListener('blur', () => {
+      let t = parseFloat(numTLen.value);
+      if (isNaN(t)) t = 4.0;
+      syncTLenLabels(t);
+      numTLen.value = t.toFixed(1);
+    });
+
+    function getActiveContinuousVal(tVal) {
+      if (activeLoadedWaves.length === 0) {
+        const A = parseFloat(sliderA.value) || 1.0;
+        const f = parseFloat(sliderFreq.value) || 1.0;
+        const phiRad = ((parseFloat(sliderPhase.value) || 0) * Math.PI) / 180.0;
+        return A * Math.sin(2 * Math.PI * f * tVal + phiRad);
+      } else if (!isCombinedMode) {
+        return getWaveVal(activeLoadedWaves[0], tVal);
+      } else {
+        let sum = 0;
+        activeLoadedWaves.forEach(w => {
+          sum += getWaveVal(w, tVal);
+        });
+        return sum;
+      }
+    }
+
+    btnRunSampling.addEventListener('click', () => {
+      const fsVal = parseFloat(sliderFs.value) || 10.0;
+      const tStartVal = parseFloat(sliderTStart.value) || 0.0;
+      const tLenVal = parseFloat(sliderTLen.value) || 4.0;
+
+      const dt = 1.0 / fsVal;
+      const times = [];
+      const values = [];
+
+      const tEnd = Math.min(4.0, tStartVal + tLenVal);
+      for (let t = tStartVal; t <= tEnd + 1e-9; t += dt) {
+        times.push(t);
+        values.push(getActiveContinuousVal(t));
+      }
+
+      currentSampledData = {
+        fs: fsVal,
+        dt: dt,
+        tStart: tStartVal,
+        tLen: tLenVal,
+        times: times,
+        values: values
+      };
+
+      isSamplingActive = true;
+      samplingStatusBadge.textContent = `● 샘플링 완료 (${times.length}개 점)`;
+      samplingStatusBadge.style.color = 'var(--emerald)';
+
+      drawAll();
+    });
+
+    btnClearSampling.addEventListener('click', () => {
+      isSamplingActive = false;
+      currentSampledData = null;
+      samplingStatusBadge.textContent = '● 미실행';
+      samplingStatusBadge.style.color = 'var(--amber)';
+      drawAll();
+    });
+
+    btnStashSampled.addEventListener('click', () => {
+      if (!isSamplingActive || !currentSampledData || currentSampledData.times.length === 0) {
+        alert('먼저 "신호 샘플하기" 버튼을 눌러 샘플링을 수행해주세요.');
+        return;
+      }
+
+      const color = COLOR_PALETTE[stashedWaves.length % COLOR_PALETTE.length];
+      const sampledWave = {
+        id: nextWaveId++,
+        name: `샘플파형 #${nextWaveId - 1} (${currentSampledData.fs.toFixed(1)}Hz)`,
+        isSampled: true,
+        fs: currentSampledData.fs,
+        dt: currentSampledData.dt,
+        tStart: currentSampledData.tStart,
+        tLen: currentSampledData.tLen,
+        sampleTimes: [...currentSampledData.times],
+        sampleValues: [...currentSampledData.values],
+        color: color,
+        checked: true
+      };
+
+      stashedWaves.push(sampledWave);
+      renderStashList();
+      alert(`${sampledWave.name}이(가) 임시 저장함에 추가되었습니다.`);
+    });
+
     // Helper to evaluate waveform value at time t
     function getWaveVal(wave, tVal) {
-      if (wave.isComposite) {
+      if (wave.isSampled) {
+        const times = wave.sampleTimes;
+        const vals = wave.sampleValues;
+        if (!times || times.length === 0) return 0;
+        if (tVal < times[0] || tVal > times[times.length - 1]) return 0;
+        for (let i = 0; i < times.length - 1; i++) {
+          if (tVal >= times[i] && tVal <= times[i + 1]) {
+            const ratio = (tVal - times[i]) / (times[i + 1] - times[i]);
+            return vals[i] + ratio * (vals[i + 1] - vals[i]);
+          }
+        }
+        return 0;
+      } else if (wave.isComposite) {
         let sum = 0;
         wave.components.forEach(c => {
           const phiRad = (c.phi * Math.PI) / 180.0;
@@ -819,6 +1045,11 @@
       isCombinedMode = false;
       hasRunFFT = false;
 
+      isSamplingActive = false;
+      currentSampledData = null;
+      samplingStatusBadge.textContent = '● 미실행';
+      samplingStatusBadge.style.color = 'var(--amber)';
+
       sliderA.value = 1.0;
       sliderFreq.value = 1.0;
       updateParamsFromFreq(1.0);
@@ -842,9 +1073,14 @@
         const item = document.createElement('div');
         item.className = 'stash-item';
 
-        const detailsText = wave.isComposite 
-          ? `합성 파형 (${wave.components.length}개 성분)`
-          : `A=${wave.A.toFixed(2)}, f=${wave.f.toFixed(2)}Hz, φ=${wave.phi}°`;
+        let detailsText = '';
+        if (wave.isSampled) {
+          detailsText = `샘플파형 (fs=${wave.fs.toFixed(1)}Hz, N=${wave.sampleTimes.length}개, Δt=${wave.dt.toFixed(3)}s)`;
+        } else if (wave.isComposite) {
+          detailsText = `합성 파형 (${wave.components.length}개 성분)`;
+        } else {
+          detailsText = `A=${wave.A.toFixed(2)}, f=${wave.f.toFixed(2)}Hz, φ=${wave.phi}°`;
+        }
 
         item.innerHTML = `
           <div class="stash-left">
@@ -1155,6 +1391,71 @@
             </div>
           `;
         });
+      }
+
+      // Draw Discrete Sample Overlay if Sampling is Active
+      if (isSamplingActive && currentSampledData && currentSampledData.times.length > 0) {
+        const times = currentSampledData.times;
+        const vals = currentSampledData.values;
+
+        // 1. Draw Stem Lines from y = 0
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.45)';
+        ctx.lineWidth = 1.2 * window.devicePixelRatio;
+        ctx.setLineDash([3, 3]);
+
+        for (let k = 0; k < times.length; k++) {
+          const tVal = times[k];
+          const yVal = vals[k];
+          const px = marginL + (tVal / duration) * plotW;
+          const py = centerY - (yVal / maxRangeY) * (plotH / 2);
+
+          ctx.beginPath();
+          ctx.moveTo(px, centerY);
+          ctx.lineTo(px, py);
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // 2. Draw Reconstructed Discrete Line connecting sample dots
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 2 * window.devicePixelRatio;
+        ctx.beginPath();
+
+        for (let k = 0; k < times.length; k++) {
+          const tVal = times[k];
+          const yVal = vals[k];
+          const px = marginL + (tVal / duration) * plotW;
+          const py = centerY - (yVal / maxRangeY) * (plotH / 2);
+
+          if (k === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        // 3. Draw Solid Circle Dots at sample points
+        for (let k = 0; k < times.length; k++) {
+          const tVal = times[k];
+          const yVal = vals[k];
+          const px = marginL + (tVal / duration) * plotW;
+          const py = centerY - (yVal / maxRangeY) * (plotH / 2);
+
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.arc(px, py, 4.5 * window.devicePixelRatio, 0, 2 * Math.PI);
+          ctx.fill();
+
+          ctx.strokeStyle = '#0b1120';
+          ctx.lineWidth = 1.5 * window.devicePixelRatio;
+          ctx.stroke();
+        }
+
+        // Legend for discrete sampling
+        legendTime.innerHTML += `
+          <div class="legend-item">
+            <div class="legend-color" style="background:#facc15;"></div>
+            <span>디지털 샘플 점 (fs=${currentSampledData.fs.toFixed(1)}Hz, Δt=${currentSampledData.dt.toFixed(3)}s, N=${times.length}개)</span>
+          </div>
+        `;
       }
     }
 
