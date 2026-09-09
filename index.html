@@ -1505,6 +1505,31 @@
       return amps;
     }
 
+    function computeSampledFFT(sampleValues, fsVal) {
+      const M = sampleValues.length;
+      if (!M || M < 2) return { freqs: new Float64Array(0), amps: new Float64Array(0) };
+
+      let Nfft = 1;
+      while (Nfft < M) Nfft <<= 1;
+      Nfft = Math.max(64, Nfft);
+
+      const signalVals = new Float64Array(Nfft);
+      for (let i = 0; i < M; i++) {
+        signalVals[i] = sampleValues[i];
+      }
+
+      const spectrum = runFFT(signalVals);
+      const halfN = Nfft >> 1;
+      const freqs = new Float64Array(halfN);
+      const amps = new Float64Array(halfN);
+
+      for (let i = 0; i < halfN; i++) {
+        freqs[i] = (i / Nfft) * fsVal;
+        amps[i] = spectrum[i] * (Nfft / M);
+      }
+      return { freqs, amps, Nfft, M, fs: fsVal };
+    }
+
     // Main Drawing Function
     function drawAll() {
       drawTimeDomain();
@@ -1642,22 +1667,54 @@
         activeLoadedWaves.forEach(wave => {
           ctx.strokeStyle = wave.color;
           ctx.lineWidth = 2 * window.devicePixelRatio;
-          ctx.beginPath();
 
-          for (let i = 0; i < N; i++) {
-            const tVal = (i / N) * duration;
-            const yVal = getWaveVal(wave, tVal);
-            const px = marginL + (tVal / duration) * plotW;
-            const py = centerY - (yVal / maxRangeY) * (plotH / 2);
+          if (wave.isSampled && wave.sampleTimes && wave.sampleTimes.length > 0) {
+            const times = wave.sampleTimes;
+            const vals = wave.sampleValues;
 
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
+            ctx.beginPath();
+            for (let k = 0; k < times.length; k++) {
+              const tVal = times[k];
+              const yVal = vals[k];
+              const px = marginL + (tVal / duration) * plotW;
+              const py = centerY - (yVal / maxRangeY) * (plotH / 2);
+
+              if (k === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+
+            // Draw solid sample dots for loaded sampled wave
+            for (let k = 0; k < times.length; k++) {
+              const tVal = times[k];
+              const yVal = vals[k];
+              const px = marginL + (tVal / duration) * plotW;
+              const py = centerY - (yVal / maxRangeY) * (plotH / 2);
+
+              ctx.fillStyle = wave.color;
+              ctx.beginPath();
+              ctx.arc(px, py, 3.5 * window.devicePixelRatio, 0, 2 * Math.PI);
+              ctx.fill();
+            }
+          } else {
+            ctx.beginPath();
+            for (let i = 0; i < N; i++) {
+              const tVal = (i / N) * duration;
+              const yVal = getWaveVal(wave, tVal);
+              const px = marginL + (tVal / duration) * plotW;
+              const py = centerY - (yVal / maxRangeY) * (plotH / 2);
+
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
           }
-          ctx.stroke();
 
-          const labelStr = wave.isComposite
-            ? `${wave.name} (합성 ${wave.components.length}개 성분)`
-            : `${wave.name} (A=${wave.A.toFixed(2)}, f=${wave.f.toFixed(2)}Hz)`;
+          const labelStr = wave.isSampled
+            ? `${wave.name} (fs=${wave.fs.toFixed(1)}Hz, N=${wave.sampleTimes.length}개)`
+            : (wave.isComposite
+              ? `${wave.name} (합성 ${wave.components.length}개 성분)`
+              : `${wave.name} (A=${wave.A.toFixed(2)}, f=${wave.f.toFixed(2)}Hz)`);
 
           legendTime.innerHTML += `
             <div class="legend-item">
@@ -1836,72 +1893,47 @@
 
       if (activeLoadedWaves.length === 0) {
         // FFT of Single Live Wave (or Live Sampled Wave)
-        const signalVals = new Float64Array(N);
-
         if (isSamplingActive && currentSampledData && currentSampledData.times.length > 0) {
-          const dummyWave = {
-            isSampled: true,
-            sampleTimes: currentSampledData.times,
-            sampleValues: currentSampledData.values
-          };
-          for (let i = 0; i < N; i++) {
-            const tVal = (i / N) * duration;
-            signalVals[i] = getWaveVal(dummyWave, tVal);
+          const fftRes = computeSampledFFT(currentSampledData.values, currentSampledData.fs);
+          const freqs = fftRes.freqs;
+          const amps = fftRes.amps;
+
+          ctx.strokeStyle = '#facc15';
+          ctx.lineWidth = 2.5 * window.devicePixelRatio;
+          ctx.beginPath();
+
+          for (let i = 0; i < freqs.length; i++) {
+            const freqVal = freqs[i];
+            if (freqVal > maxFreqView) break;
+
+            const px = marginL + (freqVal / maxFreqView) * plotW;
+            const py = marginT + plotH - (amps[i] / maxAmpView) * plotH;
+
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
           }
+          ctx.stroke();
+
+          legendFFT.innerHTML = `
+            <div class="legend-item">
+              <div class="legend-color" style="background:#facc15;"></div>
+              <span>샘플 파형 FFT 스펙트럼 (fs=${currentSampledData.fs.toFixed(1)}Hz, N=${currentSampledData.times.length}개)</span>
+            </div>
+          `;
         } else {
           const A = parseFloat(sliderA.value);
           const f = parseFloat(sliderFreq.value);
           const phiRad = (parseFloat(sliderPhase.value) * Math.PI) / 180.0;
+          const signalVals = new Float64Array(N);
           for (let i = 0; i < N; i++) {
             const tVal = (i / N) * duration;
             signalVals[i] = A * Math.sin(2 * Math.PI * f * tVal + phiRad);
           }
-        }
-
-        const spectrum = runFFT(signalVals);
-
-        ctx.strokeStyle = (isSamplingActive ? '#facc15' : '#38bdf8');
-        ctx.lineWidth = 2.5 * window.devicePixelRatio;
-        ctx.beginPath();
-
-        const halfN = N / 2;
-        for (let i = 0; i < halfN; i++) {
-          const freqVal = (i / N) * fs;
-          if (freqVal > maxFreqView) break;
-
-          const px = marginL + (freqVal / maxFreqView) * plotW;
-          const py = marginT + plotH - (spectrum[i] / maxAmpView) * plotH;
-
-          if (i === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.stroke();
-
-        const fLive = parseFloat(sliderFreq.value);
-        const aLive = parseFloat(sliderA.value);
-        const infoStr = isSamplingActive
-          ? `샘플 파형 FFT 스펙트럼 (fs=${currentSampledData.fs.toFixed(1)}Hz, N=${currentSampledData.times.length}개)`
-          : `단일 파형 FFT 스펙트럼 (Peak at ${fLive.toFixed(2)}Hz, Amp=${aLive.toFixed(2)})`;
-
-        legendFFT.innerHTML = `
-          <div class="legend-item">
-            <div class="legend-color" style="background:${isSamplingActive ? '#facc15' : '#38bdf8'};"></div>
-            <span>${infoStr}</span>
-          </div>
-        `;
-      } else if (!isCombinedMode) {
-        // Multi-wave Spectrum Overlay
-        activeLoadedWaves.forEach(wave => {
-          const signalVals = new Float64Array(N);
-          for (let i = 0; i < N; i++) {
-            const tVal = (i / N) * duration;
-            signalVals[i] = getWaveVal(wave, tVal);
-          }
 
           const spectrum = runFFT(signalVals);
 
-          ctx.strokeStyle = wave.color;
-          ctx.lineWidth = 2 * window.devicePixelRatio;
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 2.5 * window.devicePixelRatio;
           ctx.beginPath();
 
           const halfN = N / 2;
@@ -1917,8 +1949,65 @@
           }
           ctx.stroke();
 
+          legendFFT.innerHTML = `
+            <div class="legend-item">
+              <div class="legend-color" style="background:#38bdf8;"></div>
+              <span>단일 파형 FFT 스펙트럼 (Peak at ${f.toFixed(2)}Hz, Amp=${A.toFixed(2)})</span>
+            </div>
+          `;
+        }
+      } else if (!isCombinedMode) {
+        // Multi-wave Spectrum Overlay
+        activeLoadedWaves.forEach(wave => {
+          if (wave.isSampled && wave.sampleValues && wave.sampleValues.length > 0) {
+            const fftRes = computeSampledFFT(wave.sampleValues, wave.fs);
+            const freqs = fftRes.freqs;
+            const amps = fftRes.amps;
+
+            ctx.strokeStyle = wave.color;
+            ctx.lineWidth = 2 * window.devicePixelRatio;
+            ctx.beginPath();
+
+            for (let i = 0; i < freqs.length; i++) {
+              const freqVal = freqs[i];
+              if (freqVal > maxFreqView) break;
+
+              const px = marginL + (freqVal / maxFreqView) * plotW;
+              const py = marginT + plotH - (amps[i] / maxAmpView) * plotH;
+
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+          } else {
+            const signalVals = new Float64Array(N);
+            for (let i = 0; i < N; i++) {
+              const tVal = (i / N) * duration;
+              signalVals[i] = getWaveVal(wave, tVal);
+            }
+
+            const spectrum = runFFT(signalVals);
+
+            ctx.strokeStyle = wave.color;
+            ctx.lineWidth = 2 * window.devicePixelRatio;
+            ctx.beginPath();
+
+            const halfN = N / 2;
+            for (let i = 0; i < halfN; i++) {
+              const freqVal = (i / N) * fs;
+              if (freqVal > maxFreqView) break;
+
+              const px = marginL + (freqVal / maxFreqView) * plotW;
+              const py = marginT + plotH - (spectrum[i] / maxAmpView) * plotH;
+
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+          }
+
           const legendText = wave.isSampled
-            ? `${wave.name} FFT 스펙트럼 (fs=${wave.fs.toFixed(1)}Hz, deltat=${wave.dt.toFixed(3)}s)`
+            ? `${wave.name} FFT 스펙트럼 (fs=${wave.fs.toFixed(1)}Hz, Δt=${wave.dt.toFixed(3)}s)`
             : (wave.isComposite
               ? `${wave.name} FFT 스펙트럼 (합성 파형)`
               : `${wave.name} (Peak: ${wave.f.toFixed(2)}Hz, Amp=${wave.A.toFixed(2)})`);
