@@ -116,6 +116,12 @@
       margin-bottom: 0.4rem;
     }
 
+    .control-group label > span:first-child {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0;
+    }
+
     .control-group label .val {
       font-family: 'JetBrains Mono', monospace;
       color: var(--primary);
@@ -361,6 +367,63 @@
       height: 4px;
       border-radius: 2px;
     }
+
+    sub {
+      font-size: 0.78em;
+      line-height: 0;
+      position: relative;
+      bottom: -0.15em;
+      vertical-align: baseline;
+    }
+
+    /* Tabs Styling */
+    .tab-nav {
+      display: flex;
+      background: rgba(15, 23, 42, 0.75);
+      border-radius: 10px;
+      padding: 3px;
+      gap: 3px;
+      margin-bottom: 1.2rem;
+      border: 1px solid var(--card-border);
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.55rem 0.2rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.2rem;
+      text-align: center;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: #0b1120;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.35);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -375,132 +438,141 @@
     <!-- Left Controls Panel -->
     <div class="left-panel">
       
-      <!-- 1. Parameter Input Card -->
       <div class="card">
-        <div class="card-title">
-          <span>1. 정현파 변수 설정</span>
-          <span style="font-size:0.75rem; color:var(--emerald);">● 실시간 반영</span>
+        <!-- Tab Navigation Bar -->
+        <div class="tab-nav">
+          <button class="tab-btn active" data-tab="tab1">1. 정현파 변수</button>
+          <button class="tab-btn" data-tab="tab2">2. 디지털 샘플링</button>
+          <button class="tab-btn" data-tab="tab3">3. 임시 저장함 <span id="stashBadge" style="font-size:0.75rem; opacity:0.85;">(0)</span></button>
         </div>
 
-        <div class="formula-box" id="formulaDisplay">
-          y(t) = 1.00 sin(2π · 1.00t + 0.0°)
-        </div>
+        <!-- Tab 1: 정현파 변수 설정 -->
+        <div class="tab-content active" id="tab1">
+          <div class="card-title" style="margin-bottom:0.8rem;">
+            <span>1. 정현파 변수 설정</span>
+            <span style="font-size:0.75rem; color:var(--emerald);">● 실시간 반영</span>
+          </div>
 
-        <!-- Amplitude A -->
-        <div class="control-group">
-          <label>진폭 (Amplitude, A)</label>
-          <div class="input-row">
-            <input type="range" id="sliderA" min="0.1" max="5.0" step="0.05" value="1.0">
-            <input type="number" id="numA" min="0.1" max="5.0" step="0.1" value="1.0">
+          <div class="formula-box" id="formulaDisplay">
+            y(t) = 1.00 sin(2π · 1.00t + 0.0°)
+          </div>
+
+          <!-- Amplitude A -->
+          <div class="control-group">
+            <label><span>진폭 (Amplitude, A)</span></label>
+            <div class="input-row">
+              <input type="range" id="sliderA" min="0.1" max="5.0" step="0.05" value="1.0">
+              <input type="number" id="numA" min="0.1" max="5.0" step="0.1" value="1.0">
+            </div>
+          </div>
+
+          <!-- Frequency f -->
+          <div class="control-group">
+            <label><span>주파수 (Frequency, f) [Hz]</span></label>
+            <div class="input-row">
+              <input type="range" id="sliderFreq" min="0.2" max="15.0" step="0.1" value="1.0">
+              <input type="number" id="numFreq" min="0.2" max="15.0" step="0.1" value="1.0">
+            </div>
+          </div>
+
+          <!-- Period T (Auto-linked) -->
+          <div class="control-group">
+            <label><span>주기 (Period, T = 1/f) [s]</span></label>
+            <div class="input-row">
+              <input type="range" id="sliderPeriod" min="0.067" max="5.0" step="0.01" value="1.0">
+              <input type="number" id="numPeriod" min="0.067" max="5.0" step="0.1" value="1.0">
+            </div>
+          </div>
+
+          <!-- Phase phi -->
+          <div class="control-group">
+            <label><span>위상 (Phase, φ) [°]</span></label>
+            <div class="input-row">
+              <input type="range" id="sliderPhase" min="0" max="360" step="1" value="0">
+              <input type="number" id="numPhase" min="0" max="360" step="0.1" value="0">
+            </div>
+          </div>
+
+          <div class="btn-grid">
+            <button class="btn btn-emerald" id="btnStash">💾 현재 파형 저장</button>
+            <button class="btn btn-secondary" id="btnReset">🔄 화면/변수 리셋</button>
           </div>
         </div>
 
-        <!-- Frequency f -->
-        <div class="control-group">
-          <label>주파수 (Frequency, f) [Hz]</label>
-          <div class="input-row">
-            <input type="range" id="sliderFreq" min="0.2" max="15.0" step="0.1" value="1.0">
-            <input type="number" id="numFreq" min="0.2" max="15.0" step="0.1" value="1.0">
+        <!-- Tab 2: 디지털 샘플링 설정 -->
+        <div class="tab-content" id="tab2">
+          <div class="card-title" style="margin-bottom:0.8rem;">
+            <span>2. 디지털 샘플링 설정</span>
+            <span style="font-size:0.75rem; color:var(--amber);" id="samplingStatusBadge">● 미실행</span>
+          </div>
+
+          <!-- Sampling Frequency fs -->
+          <div class="control-group">
+            <label><span>샘플링 주파수 (Sampling Frequency, f<sub>s</sub>) [Hz]</span></label>
+            <div class="input-row">
+              <input type="range" id="sliderFs" min="0.5" max="50.0" step="0.5" value="10.0">
+              <input type="number" id="numFs" min="0.5" max="50.0" step="0.1" value="10.0">
+            </div>
+          </div>
+
+          <!-- Sampling Interval dt -->
+          <div class="control-group">
+            <label><span>샘플링 간격 (Sampling Interval, Δt = 1/f<sub>s</sub>) [s]</span></label>
+            <div class="input-row">
+              <input type="range" id="sliderDt" min="0.02" max="2.0" step="0.005" value="0.100">
+              <input type="number" id="numDt" min="0.02" max="2.0" step="0.1" value="0.100">
+            </div>
+          </div>
+
+          <!-- Start Time t_start -->
+          <div class="control-group">
+            <label><span>시작 시간 (Start Time, t<sub>start</sub>) [s]</span></label>
+            <div class="input-row">
+              <input type="range" id="sliderTStart" min="0.0" max="7.5" step="0.1" value="0.0">
+              <input type="number" id="numTStart" min="0.0" max="7.5" step="0.1" value="0.0">
+            </div>
+          </div>
+
+          <!-- Sample Duration T_len -->
+          <div class="control-group">
+            <label><span>샘플 길이 (Sample Duration, T<sub>len</sub>) [s]</span></label>
+            <div class="input-row">
+              <input type="range" id="sliderTLen" min="0.1" max="8.0" step="0.1" value="8.0">
+              <input type="number" id="numTLen" min="0.1" max="8.0" step="0.1" value="8.0">
+            </div>
+          </div>
+
+          <div class="btn-grid">
+            <button class="btn btn-emerald btn-full" id="btnRunSampling">📍 신호 샘플하기 (샘플 점 추출)</button>
+            <button class="btn btn-purple" id="btnStashSampled">💾 샘플 파형 저장</button>
+            <button class="btn btn-secondary" id="btnClearSampling">❌ 샘플링 해제</button>
           </div>
         </div>
 
-        <!-- Period T (Auto-linked) -->
-        <div class="control-group">
-          <label>주기 (Period, T = 1/f) [s]</label>
-          <div class="input-row">
-            <input type="range" id="sliderPeriod" min="0.067" max="5.0" step="0.01" value="1.0">
-            <input type="number" id="numPeriod" min="0.067" max="5.0" step="0.1" value="1.0">
+        <!-- Tab 3: 임시 저장 파형 목록 -->
+        <div class="tab-content" id="tab3">
+          <div class="card-title" style="margin-bottom:0.8rem;">
+            <span>3. 임시 저장 파형 목록</span>
+            <span style="font-size:0.75rem; color:var(--text-muted);" id="stashCount">0개 저장됨</span>
           </div>
-        </div>
 
-        <!-- Phase phi -->
-        <div class="control-group">
-          <label>위상 (Phase, φ) [°]</label>
-          <div class="input-row">
-            <input type="range" id="sliderPhase" min="0" max="360" step="1" value="0">
-            <input type="number" id="numPhase" min="0" max="360" step="0.1" value="0">
+          <div class="stash-toolbar">
+            <label style="cursor:pointer; display:flex; align-items:center; gap:0.4rem;">
+              <input type="checkbox" id="chkSelectAll" checked> 전체 선택/해제
+            </label>
           </div>
-        </div>
 
-        <div class="btn-grid">
-          <button class="btn btn-emerald" id="btnStash">💾 현재 파형 저장</button>
-          <button class="btn btn-secondary" id="btnReset">🔄 화면/변수 리셋</button>
-        </div>
-      </div>
-
-      <!-- 2. Digital Sampling Control Card -->
-      <div class="card">
-        <div class="card-title">
-          <span>2. 디지털 샘플링 설정</span>
-          <span style="font-size:0.75rem; color:var(--amber);" id="samplingStatusBadge">● 미실행</span>
-        </div>
-
-        <!-- Sampling Frequency fs -->
-        <div class="control-group">
-          <label>샘플링 주파수 (Sampling Frequency, f<sub>s</sub>) [Hz]</label>
-          <div class="input-row">
-            <input type="range" id="sliderFs" min="0.5" max="50.0" step="0.5" value="10.0">
-            <input type="number" id="numFs" min="0.5" max="50.0" step="0.1" value="10.0">
+          <div class="stash-list" id="stashList">
+            <!-- Stashed items rendered dynamically -->
           </div>
-        </div>
 
-        <!-- Sampling Interval dt -->
-        <div class="control-group">
-          <label>샘플링 간격 (Sampling Interval, Δt = 1/f<sub>s</sub>) [s]</label>
-          <div class="input-row">
-            <input type="range" id="sliderDt" min="0.02" max="2.0" step="0.005" value="0.100">
-            <input type="number" id="numDt" min="0.02" max="2.0" step="0.1" value="0.100">
+          <div class="btn-grid">
+            <button class="btn btn-secondary" id="btnLoadSelected">📥 선택 파형 불러오기</button>
+            <button class="btn btn-danger" id="btnDeleteSelected">🗑️ 선택 삭제</button>
+            <button class="btn btn-purple btn-full" id="btnCombine">⚡ 선택 파형 합성하기</button>
+            <button class="btn btn-emerald btn-full" id="btnSaveCombined">✨ 합성 파형 임시 저장함에 추가</button>
+            <button class="btn btn-primary btn-full" id="btnFFT" style="background: linear-gradient(135deg, #0284c7, #0369a1);">📊 FFT 분석 실행 (진폭 스펙트럼)</button>
           </div>
-        </div>
-
-        <!-- Start Time t_start -->
-        <div class="control-group">
-          <label>시작 시간 (Start Time, t<sub>start</sub>) [s]</label>
-          <div class="input-row">
-            <input type="range" id="sliderTStart" min="0.0" max="7.5" step="0.1" value="0.0">
-            <input type="number" id="numTStart" min="0.0" max="7.5" step="0.1" value="0.0">
-          </div>
-        </div>
-
-        <!-- Sample Duration T_len -->
-        <div class="control-group">
-          <label>샘플 길이 (Sample Duration, T<sub>len</sub>) [s]</label>
-          <div class="input-row">
-            <input type="range" id="sliderTLen" min="0.1" max="8.0" step="0.1" value="8.0">
-            <input type="number" id="numTLen" min="0.1" max="8.0" step="0.1" value="8.0">
-          </div>
-        </div>
-
-        <div class="btn-grid">
-          <button class="btn btn-emerald btn-full" id="btnRunSampling">📍 신호 샘플하기 (샘플 점 추출)</button>
-          <button class="btn btn-purple" id="btnStashSampled">💾 샘플 파형 저장</button>
-          <button class="btn btn-secondary" id="btnClearSampling">❌ 샘플링 해제</button>
-        </div>
-      </div>
-
-      <!-- 3. Waveform Stash Manager Card -->
-      <div class="card">
-        <div class="card-title">
-          <span>3. 임시 저장 파형 목록</span>
-          <span style="font-size:0.75rem; color:var(--text-muted);" id="stashCount">0개 저장됨</span>
-        </div>
-
-        <div class="stash-toolbar">
-          <label style="cursor:pointer; display:flex; align-items:center; gap:0.4rem;">
-            <input type="checkbox" id="chkSelectAll" checked> 전체 선택/해제
-          </label>
-        </div>
-
-        <div class="stash-list" id="stashList">
-          <!-- Stashed items rendered dynamically -->
-        </div>
-
-        <div class="btn-grid">
-          <button class="btn btn-secondary" id="btnLoadSelected">📥 선택 파형 불러오기</button>
-          <button class="btn btn-danger" id="btnDeleteSelected">🗑️ 선택 삭제</button>
-          <button class="btn btn-purple btn-full" id="btnCombine">⚡ 선택 파형 합성하기</button>
-          <button class="btn btn-emerald btn-full" id="btnSaveCombined">✨ 합성 파형 임시 저장함에 추가</button>
-          <button class="btn btn-primary btn-full" id="btnFFT" style="background: linear-gradient(135deg, #0284c7, #0369a1);">📊 FFT 분석 실행 (진폭 스펙트럼)</button>
         </div>
       </div>
 
@@ -1250,9 +1322,29 @@
     btnReset.addEventListener('click', resetToLiveMode);
     btnResetHeader.addEventListener('click', resetToLiveMode);
 
+    // Tab Switching Logic
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetTab = btn.getAttribute('data-tab');
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+
+        btn.classList.add('active');
+        document.getElementById(targetTab).classList.add('active');
+      });
+    });
+
     function renderStashList() {
       stashList.innerHTML = '';
       stashCount.textContent = `${stashedWaves.length}개 저장됨`;
+      
+      const stashBadge = document.getElementById('stashBadge');
+      if (stashBadge) {
+        stashBadge.textContent = `(${stashedWaves.length})`;
+      }
 
       stashedWaves.forEach((wave) => {
         const item = document.createElement('div');
