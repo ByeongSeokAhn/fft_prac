@@ -496,6 +496,7 @@
           <div class="btn-grid">
             <button class="btn btn-emerald" id="btnStash">💾 현재 파형 저장</button>
             <button class="btn btn-secondary" id="btnReset">🔄 화면/변수 리셋</button>
+            <button class="btn btn-purple btn-full" id="btnFFTTab1">📊 FFT 분석 실행 (진폭 스펙트럼)</button>
           </div>
         </div>
 
@@ -544,6 +545,7 @@
 
           <div class="btn-grid">
             <button class="btn btn-emerald btn-full" id="btnRunSampling">📍 신호 샘플하기 (샘플 점 추출)</button>
+            <button class="btn btn-purple btn-full" id="btnFFTTab2">📊 FFT 분석 실행 (진폭 스펙트럼)</button>
             <button class="btn btn-purple" id="btnStashSampled">💾 샘플 파형 저장</button>
             <button class="btn btn-secondary" id="btnClearSampling">❌ 샘플링 해제</button>
           </div>
@@ -661,6 +663,8 @@
     const btnCombine = document.getElementById('btnCombine');
     const btnSaveCombined = document.getElementById('btnSaveCombined');
     const btnFFT = document.getElementById('btnFFT');
+    const btnFFTTab1 = document.getElementById('btnFFTTab1');
+    const btnFFTTab2 = document.getElementById('btnFFTTab2');
 
     // Sampling Elements
     const sliderFs = document.getElementById('sliderFs');
@@ -1169,6 +1173,8 @@
       isSamplingActive = true;
       samplingStatusBadge.textContent = `● 샘플링 완료 (${times.length}개 점)`;
       samplingStatusBadge.style.color = 'var(--emerald)';
+      hasRunFFT = true;
+      fftChartStatus.textContent = 'FFT 분석 완료';
 
       drawAll();
     });
@@ -1411,7 +1417,8 @@
       }
       activeLoadedWaves = checkedWaves.map(w => ({ ...w }));
       isCombinedMode = false;
-      hasRunFFT = false;
+      hasRunFFT = true;
+      fftChartStatus.textContent = 'FFT 분석 완료';
       timeChartMode.textContent = `선택된 ${activeLoadedWaves.length}개 파형 로드됨`;
       drawAll();
     });
@@ -1424,24 +1431,25 @@
       }
       activeLoadedWaves = checkedWaves.map(w => ({ ...w }));
       isCombinedMode = true;
-      hasRunFFT = false;
+      hasRunFFT = true;
+      fftChartStatus.textContent = 'FFT 분석 완료';
       timeChartMode.textContent = `선택된 ${activeLoadedWaves.length}개 파형 합성 모드`;
       drawAll();
     });
 
-    btnFFT.addEventListener('click', () => {
+    function runFFTAnalysis() {
       const checkedWaves = stashedWaves.filter(w => w.checked);
-      if (checkedWaves.length === 0 && activeLoadedWaves.length === 0) {
-        alert('FFT 분석을 실행할 파형을 선택하거나 저장함에서 불러와주세요.');
-        return;
-      }
-      if (activeLoadedWaves.length === 0) {
+      if (checkedWaves.length > 0) {
         activeLoadedWaves = checkedWaves.map(w => ({ ...w }));
       }
       hasRunFFT = true;
       fftChartStatus.textContent = 'FFT 분석 완료';
       drawAll();
-    });
+    }
+
+    if (btnFFTTab1) btnFFTTab1.addEventListener('click', runFFTAnalysis);
+    if (btnFFTTab2) btnFFTTab2.addEventListener('click', runFFTAnalysis);
+    if (btnFFT) btnFFT.addEventListener('click', runFFTAnalysis);
 
     // Pure JS Cooley-Tukey Radix-2 FFT Engine
     function runFFT(signalValues) {
