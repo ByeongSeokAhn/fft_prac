@@ -1,23 +1,28 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sine Wave Physics Visualizer: Spatial & Temporal Profiles</title>
+  <title>시계열 파형 생성 및 푸리에(FFT) 분석 인터랙티브 실습 도구</title>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-dark: #0f172a;
+      --bg-main: #0b1120;
       --card-bg: rgba(30, 41, 59, 0.7);
-      --card-border: rgba(255, 255, 255, 0.1);
-      --primary-cyan: #38bdf8;
-      --primary-coral: #fb7185;
-      --accent-green: #4ade80;
-      --accent-amber: #fbbf24;
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover: rgba(51, 65, 85, 0.8);
+      --primary: #38bdf8;
+      --primary-hover: #0284c7;
+      --coral: #fb7185;
+      --emerald: #34d399;
+      --purple: #c084fc;
+      --amber: #facc15;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
+      --text-dim: #64748b;
     }
 
     * {
@@ -28,496 +33,1322 @@
 
     body {
       font-family: 'Inter', sans-serif;
-      background-color: var(--bg-dark);
-      background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
+      background-color: var(--bg-main);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(192, 132, 252, 0.08) 0%, transparent 40%);
       color: var(--text-main);
       min-height: 100vh;
-      padding: 2rem;
+      padding: 1.5rem;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
 
     header {
+      width: 100%;
+      max-width: 1280px;
       text-align: center;
-      margin-bottom: 2rem;
-      max-width: 900px;
+      margin-bottom: 1.5rem;
     }
 
-    h1 {
-      font-size: 2.2rem;
+    header h1 {
+      font-size: 2rem;
       font-weight: 700;
-      background: linear-gradient(135deg, var(--primary-cyan), var(--primary-coral));
+      background: linear-gradient(135deg, var(--primary), var(--purple));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.4rem;
     }
 
-    p.subtitle {
+    header p {
       color: var(--text-muted);
-      font-size: 1.05rem;
+      font-size: 1rem;
     }
 
-    .container {
+    .app-container {
       width: 100%;
-      max-width: 1100px;
-      display: flex;
-      flex-direction: column;
-      gap: 1.8rem;
+      max-width: 1280px;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 1.5rem;
     }
 
-    .controls-card {
+    @media (max-width: 960px) {
+      .app-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
       background: var(--card-bg);
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(16px);
       border: 1px solid var(--card-border);
       border-radius: 16px;
-      padding: 1.5rem;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1.5rem;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      padding: 1.25rem;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
+      margin-bottom: 1.25rem;
     }
 
-    .control-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .control-group label {
-      font-size: 0.9rem;
+    .card-title {
+      font-size: 1.1rem;
       font-weight: 600;
-      color: var(--text-muted);
+      color: var(--text-main);
+      margin-bottom: 1rem;
       display: flex;
+      align-items: center;
       justify-content: space-between;
     }
 
-    .control-group label span.val {
-      color: var(--primary-cyan);
+    /* Controls Form */
+    .control-group {
+      margin-bottom: 1rem;
+    }
+
+    .control-group label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .control-group label .val {
       font-family: 'JetBrains Mono', monospace;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.8rem;
+      align-items: center;
     }
 
     input[type="range"] {
-      width: 100%;
-      accent-color: var(--primary-cyan);
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: #334155;
+      accent-color: var(--primary);
       cursor: pointer;
     }
 
-    .btn-row {
-      grid-column: 1 / -1;
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
+    input[type="number"] {
+      width: 75px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', monospace;
+      padding: 0.3rem 0.5rem;
+      font-size: 0.88rem;
+      text-align: right;
     }
 
-    button {
+    input[type="number"]:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .formula-box {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px dashed #334155;
+      border-radius: 8px;
+      padding: 0.75rem;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+      color: var(--emerald);
+      margin-bottom: 1rem;
+    }
+
+    /* Buttons */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+    }
+
+    .btn {
       background: linear-gradient(135deg, #0284c7, #0369a1);
       color: white;
       border: none;
-      padding: 0.6rem 1.4rem;
+      padding: 0.65rem 1rem;
       border-radius: 8px;
+      font-size: 0.88rem;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
     }
 
-    button:hover {
+    .btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
     }
 
-    .grid-plots {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1.5rem;
+    .btn-emerald {
+      background: linear-gradient(135deg, #059669, #047857);
+    }
+    .btn-emerald:hover {
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
     }
 
-    .plot-card {
-      background: var(--card-bg);
-      backdrop-filter: blur(12px);
+    .btn-purple {
+      background: linear-gradient(135deg, #7e22ce, #6b21a8);
+    }
+    .btn-purple:hover {
+      box-shadow: 0 4px 12px rgba(126, 34, 206, 0.4);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+    }
+    .btn-danger:hover {
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+    }
+
+    .btn-secondary {
+      background: #334155;
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background: #475569;
+    }
+
+    .btn-full {
+      grid-column: 1 / -1;
+    }
+
+    /* Stash List */
+    .stash-list {
+      max-height: 240px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 0.8rem;
+      padding-right: 0.2rem;
+    }
+
+    .stash-item {
+      background: rgba(15, 23, 42, 0.6);
       border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 1.5rem;
+      border-radius: 8px;
+      padding: 0.6rem 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.2s;
+    }
+
+    .stash-item:hover {
+      background: rgba(51, 65, 85, 0.5);
+    }
+
+    .stash-left {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .stash-color-badge {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .stash-info {
+      font-size: 0.82rem;
+    }
+
+    .stash-name {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .stash-details {
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+    }
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .stash-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    /* Main Chart Area */
+    .chart-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .chart-box {
       position: relative;
     }
 
-    .plot-card h2 {
-      font-size: 1.25rem;
-      margin-bottom: 0.3rem;
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.6rem;
+    }
+
+    .chart-title {
+      font-size: 1.05rem;
+      font-weight: 600;
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
-    .plot-card h2.spatial-title { color: var(--primary-cyan); }
-    .plot-card h2.temporal-title { color: var(--primary-coral); }
-
-    .plot-card p.desc {
-      font-size: 0.88rem;
-      color: var(--text-muted);
-      margin-bottom: 1rem;
+    .chart-title-icon {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
     }
 
     canvas {
       width: 100%;
-      height: 280px;
-      background: #090d16;
-      border-radius: 10px;
-      display: block;
+      height: 260px;
+      background: #070a13;
       border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      display: block;
     }
 
-    .summary-card {
+    /* Legends */
+    .legend-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      margin-top: 0.6rem;
+      padding: 0.6rem 0.8rem;
       background: rgba(15, 23, 42, 0.8);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 1.5rem;
-      font-family: 'Inter', sans-serif;
-    }
-
-    .summary-card h3 {
-      color: var(--accent-amber);
-      margin-bottom: 0.8rem;
-      font-size: 1.1rem;
-    }
-
-    .formula-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1rem;
-      font-size: 0.95rem;
-      color: #cbd5e1;
-    }
-
-    .formula-item {
-      background: rgba(255, 255, 255, 0.03);
-      padding: 0.8rem 1rem;
       border-radius: 8px;
-      border-left: 3px solid var(--primary-cyan);
+      font-size: 0.8rem;
     }
 
-    .formula-item span.code {
-      font-family: 'JetBrains Mono', monospace;
-      color: var(--accent-green);
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .legend-color {
+      width: 14px;
+      height: 4px;
+      border-radius: 2px;
     }
   </style>
 </head>
 <body>
 
   <header>
-    <h1>Sine Wave Physics: Spatial vs. Temporal Representation</h1>
-    <p class="subtitle">Interactive visualization of sinusoidal wave equations: \( y(x, t) = A \sin\left(2\pi \left(\frac{x}{\lambda} - \frac{t}{T}\right)\right) \)</p>
+    <h1>시계열 파형 생성 및 푸리에(FFT) 분석 인터랙티브 실습 도구</h1>
+    <p>정현파 생성, 개별 파형 저장, 멀티파형 합성 및 FFT 진폭 스펙트럼 분석 도구</p>
   </header>
 
-  <div class="container">
+  <div class="app-container">
 
-    <!-- Controls -->
-    <div class="controls-card">
-      <div class="control-group">
-        <label>Amplitude (A): <span class="val" id="valA">1.0 m</span></label>
-        <input type="range" id="sliderA" min="0.2" max="2.0" step="0.1" value="1.0">
-      </div>
-      <div class="control-group">
-        <label>Wavelength (&lambda;): <span class="val" id="valLam">4.0 m</span></label>
-        <input type="range" id="sliderLam" min="1.0" max="10.0" step="0.5" value="4.0">
-      </div>
-      <div class="control-group">
-        <label>Period (T): <span class="val" id="valT">2.0 s</span></label>
-        <input type="range" id="sliderT" min="0.5" max="5.0" step="0.1" value="2.0">
-      </div>
-      <div class="control-group">
-        <label>Fixed Time (t₀): <span class="val" id="valFixedT">0.0 s</span></label>
-        <input type="range" id="sliderFixedT" min="0" max="10" step="0.1" value="0.0">
+    <!-- Left Controls Panel -->
+    <div class="left-panel">
+      
+      <!-- 1. Parameter Input Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>1. 정현파 변수 설정</span>
+          <span style="font-size:0.75rem; color:var(--emerald);">● 실시간 반영</span>
+        </div>
+
+        <div class="formula-box" id="formulaDisplay">
+          y(t) = 1.00 sin(2π · 1.00t + 0.0°)
+        </div>
+
+        <!-- Amplitude A -->
+        <div class="control-group">
+          <label>진폭 (Amplitude, A): <span class="val" id="valA">1.00</span></label>
+          <div class="input-row">
+            <input type="range" id="sliderA" min="0.1" max="5.0" step="0.05" value="1.0">
+            <input type="number" id="numA" min="0.1" max="5.0" step="any" value="1.0">
+          </div>
+        </div>
+
+        <!-- Frequency f -->
+        <div class="control-group">
+          <label>주파수 (Frequency, f): <span class="val" id="valFreq">1.00 Hz</span></label>
+          <div class="input-row">
+            <input type="range" id="sliderFreq" min="0.2" max="15.0" step="0.1" value="1.0">
+            <input type="number" id="numFreq" min="0.2" max="15.0" step="any" value="1.0">
+          </div>
+        </div>
+
+        <!-- Period T (Auto-linked) -->
+        <div class="control-group">
+          <label>주기 (Period, T = 1/f): <span class="val" id="valPeriod">1.00 s</span></label>
+          <div class="input-row">
+            <input type="range" id="sliderPeriod" min="0.067" max="5.0" step="0.01" value="1.0">
+            <input type="number" id="numPeriod" min="0.067" max="5.0" step="any" value="1.0">
+          </div>
+        </div>
+
+        <!-- Phase phi -->
+        <div class="control-group">
+          <label>위상 (Phase, φ): <span class="val" id="valPhase">0°</span></label>
+          <div class="input-row">
+            <input type="range" id="sliderPhase" min="0" max="360" step="1" value="0">
+            <input type="number" id="numPhase" min="0" max="360" step="any" value="0">
+          </div>
+        </div>
+
+        <div class="btn-grid">
+          <button class="btn btn-emerald" id="btnStash">💾 현재 파형 저장</button>
+          <button class="btn btn-secondary" id="btnReset">🔄 화면/변수 리셋</button>
+        </div>
       </div>
 
-      <div class="btn-row">
-        <button id="btnPlayPause">Pause Animation</button>
-        <button id="btnReset">Reset Parameters</button>
+      <!-- 2. Waveform Stash Manager Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>2. 임시 저장 파형 목록</span>
+          <span style="font-size:0.75rem; color:var(--text-muted);" id="stashCount">0개 저장됨</span>
+        </div>
+
+        <div class="stash-toolbar">
+          <label style="cursor:pointer; display:flex; align-items:center; gap:0.4rem;">
+            <input type="checkbox" id="chkSelectAll" checked> 전체 선택/해제
+          </label>
+        </div>
+
+        <div class="stash-list" id="stashList">
+          <!-- Stashed items rendered dynamically -->
+        </div>
+
+        <div class="btn-grid">
+          <button class="btn btn-secondary" id="btnLoadSelected">📥 선택 파형 불러오기</button>
+          <button class="btn btn-danger" id="btnDeleteSelected">🗑️ 선택 삭제</button>
+          <button class="btn btn-purple btn-full" id="btnCombine">⚡ 선택 파형 합성하기</button>
+          <button class="btn btn-emerald btn-full" id="btnSaveCombined">✨ 합성 파형 임시 저장함에 추가</button>
+          <button class="btn btn-primary btn-full" id="btnFFT" style="background: linear-gradient(135deg, #0284c7, #0369a1);">📊 FFT 분석 실행 (진폭 스펙트럼)</button>
+        </div>
       </div>
+
     </div>
 
-    <!-- Plots -->
-    <div class="grid-plots">
-      <!-- Spatial Plot -->
-      <div class="plot-card">
-        <h3 class="spatial-title">1. Spatial Wave Profile: \( y \) vs. Position \( x \)</h3>
-        <p class="desc">Snapshot of the wave across space at fixed time \( t = t_0 \). Distance between adjacent crests is Wavelength (\( \lambda \)).</p>
-        <canvas id="canvasSpatial"></canvas>
-      </div>
+    <!-- Right Visualization Panel -->
+    <div class="right-panel">
+      <div class="chart-container">
 
-      <!-- Temporal Plot -->
-      <div class="plot-card">
-        <h3 class="temporal-title">2. Temporal Wave Profile: \( y \) vs. Time \( t \)</h3>
-        <p class="desc">Oscillation history of a single medium particle over time at fixed position \( x = x_0 = 0 \). Duration of one cycle is Period (\( T \)).</p>
-        <canvas id="canvasTemporal"></canvas>
-      </div>
-    </div>
+        <div class="card chart-box">
+          <div class="chart-header">
+            <div class="chart-title">
+              <div class="chart-title-icon" style="background:var(--primary);"></div>
+              <span>시계열 파형 (Time Series Waveform)</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.6rem;">
+              <span style="font-size:0.8rem; color:var(--text-muted);" id="timeChartMode">단일 실시간 파형 모드</span>
+              <button class="btn btn-secondary" id="btnResetHeader" style="padding:0.25rem 0.5rem; font-size:0.75rem;">🔄 실시간 모드 리셋</button>
+            </div>
+          </div>
 
-    <!-- Summary -->
-    <div class="summary-card">
-      <h3>Key Physics Formulas</h3>
-      <div class="formula-grid">
-        <div class="formula-item">
-          <strong>Wave Speed (\(v\)):</strong><br>
-          <span class="code">v = &lambda; / T = f &bull; &lambda; = <span id="calcSpeed">2.00</span> m/s</span>
+          <canvas id="canvasTime"></canvas>
+          <div class="legend-box" id="legendTime">
+            <!-- Dynamic legends -->
+          </div>
         </div>
-        <div class="formula-item">
-          <strong>Frequency (\(f\)):</strong><br>
-          <span class="code">f = 1 / T = <span id="calcFreq">0.50</span> Hz</span>
+
+        <!-- FFT Amplitude Spectrum Chart Card -->
+        <div class="card chart-box">
+          <div class="chart-header">
+            <div class="chart-title">
+              <div class="chart-title-icon" style="background:var(--coral);"></div>
+              <span>푸리에 분석 진폭 스펙트럼 (FFT Amplitude Spectrum)</span>
+            </div>
+            <span style="font-size:0.8rem; color:var(--text-muted);" id="fftChartStatus">FFT 분석 대기 중</span>
+          </div>
+
+          <canvas id="canvasFFT"></canvas>
+          <div class="legend-box" id="legendFFT">
+            <!-- Dynamic FFT legends -->
+          </div>
         </div>
-        <div class="formula-item">
-          <strong>Wavenumber (\(k\)):</strong><br>
-          <span class="code">k = 2&pi; / &lambda; = <span id="calcK">1.57</span> rad/m</span>
-        </div>
-        <div class="formula-item">
-          <strong>Angular Frequency (\(&omega;\)):</strong><br>
-          <span class="code">&omega; = 2&pi; / T = <span id="calcOmega">3.14</span> rad/s</span>
-        </div>
+
       </div>
     </div>
 
   </div>
 
   <script>
-    const canvasSpatial = document.getElementById('canvasSpatial');
-    const ctxSpatial = canvasSpatial.getContext('2d');
-    const canvasTemporal = document.getElementById('canvasTemporal');
-    const ctxTemporal = canvasTemporal.getContext('2d');
+    // Global Color Palette for Saved Waveforms
+    const COLOR_PALETTE = [
+      '#38bdf8', // Cyan
+      '#fb7185', // Coral
+      '#34d399', // Emerald
+      '#c084fc', // Purple
+      '#facc15', // Amber
+      '#f97316', // Orange
+      '#a855f7', // Violet
+      '#06b6d4'  // Cyan-Dark
+    ];
 
+    // Dom Elements
     const sliderA = document.getElementById('sliderA');
-    const sliderLam = document.getElementById('sliderLam');
-    const sliderT = document.getElementById('sliderT');
-    const sliderFixedT = document.getElementById('sliderFixedT');
-
+    const numA = document.getElementById('numA');
     const valA = document.getElementById('valA');
-    const valLam = document.getElementById('valLam');
-    const valT = document.getElementById('valT');
-    const valFixedT = document.getElementById('valFixedT');
 
-    const calcSpeed = document.getElementById('calcSpeed');
-    const calcFreq = document.getElementById('calcFreq');
-    const calcK = document.getElementById('calcK');
-    const calcOmega = document.getElementById('calcOmega');
+    const sliderFreq = document.getElementById('sliderFreq');
+    const numFreq = document.getElementById('numFreq');
+    const valFreq = document.getElementById('valFreq');
 
-    const btnPlayPause = document.getElementById('btnPlayPause');
+    const sliderPeriod = document.getElementById('sliderPeriod');
+    const numPeriod = document.getElementById('numPeriod');
+    const valPeriod = document.getElementById('valPeriod');
+
+    const sliderPhase = document.getElementById('sliderPhase');
+    const numPhase = document.getElementById('numPhase');
+    const valPhase = document.getElementById('valPhase');
+
+    const formulaDisplay = document.getElementById('formulaDisplay');
+
+    const btnStash = document.getElementById('btnStash');
     const btnReset = document.getElementById('btnReset');
+    const btnResetHeader = document.getElementById('btnResetHeader');
+    const stashList = document.getElementById('stashList');
+    const stashCount = document.getElementById('stashCount');
+    const chkSelectAll = document.getElementById('chkSelectAll');
 
-    let isPlaying = true;
-    let animTime = 0;
-    let lastTimestamp = 0;
+    const btnLoadSelected = document.getElementById('btnLoadSelected');
+    const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+    const btnCombine = document.getElementById('btnCombine');
+    const btnSaveCombined = document.getElementById('btnSaveCombined');
+    const btnFFT = document.getElementById('btnFFT');
 
-    function resizeCanvas() {
-      [canvasSpatial, canvasTemporal].forEach(c => {
+    const canvasTime = document.getElementById('canvasTime');
+    const ctxTime = canvasTime.getContext('2d');
+    const legendTime = document.getElementById('legendTime');
+    const timeChartMode = document.getElementById('timeChartMode');
+
+    const canvasFFT = document.getElementById('canvasFFT');
+    const ctxFFT = canvasFFT.getContext('2d');
+    const legendFFT = document.getElementById('legendFFT');
+    const fftChartStatus = document.getElementById('fftChartStatus');
+
+    // Data State
+    let stashedWaves = []; // Array of { id, name, A, f, T, phase, color, checked }
+    let activeLoadedWaves = []; // Currently loaded waves for plotting/FFT
+    let isCombinedMode = false;
+    let hasRunFFT = false;
+    let nextWaveId = 1;
+
+    // Time domain sampling constants
+    const duration = 4.0; // 4 seconds
+    const fs = 256;       // Sampling frequency = 256 Hz
+    const N = 1024;       // N = 4 * 256 = 1024 points (Power of 2 for FFT)
+
+    function resizeCanvases() {
+      [canvasTime, canvasFFT].forEach(c => {
         c.width = c.clientWidth * window.devicePixelRatio;
         c.height = c.clientHeight * window.devicePixelRatio;
       });
+      drawAll();
+    }
+    window.addEventListener('resize', resizeCanvases);
+
+    // Synchronize Parameter Inputs
+    function updateFormula() {
+      const A = parseFloat(sliderA.value) || 0;
+      const f = parseFloat(sliderFreq.value) || 1;
+      const phi = parseFloat(sliderPhase.value) || 0;
+      formulaDisplay.textContent = `y(t) = ${A.toFixed(2)} sin(2π · ${f.toFixed(2)}t + ${phi}°)`;
     }
 
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+    function syncInputs() {
+      const A = parseFloat(sliderA.value) || 1.0;
+      numA.value = A.toFixed(2);
+      valA.textContent = A.toFixed(2);
 
-    function drawSpatial() {
-      const w = canvasSpatial.width;
-      const h = canvasSpatial.height;
-      const ctx = ctxSpatial;
+      const f = parseFloat(sliderFreq.value) || 1.0;
+      numFreq.value = f.toFixed(2);
+      valFreq.textContent = `${f.toFixed(2)} Hz`;
 
-      const A = parseFloat(sliderA.value);
-      const lam = parseFloat(sliderLam.value);
-      const T = parseFloat(sliderT.value);
-      const t = isPlaying ? animTime : parseFloat(sliderFixedT.value);
+      const T = 1.0 / f;
+      sliderPeriod.value = T.toFixed(3);
+      numPeriod.value = T.toFixed(3);
+      valPeriod.textContent = `${T.toFixed(2)} s`;
 
-      ctx.clearRect(0, 0, w, h);
+      const phi = parseFloat(sliderPhase.value) || 0;
+      numPhase.value = phi;
+      valPhase.textContent = `${phi}°`;
 
-      const margin = 50;
-      const plotW = w - margin * 2;
-      const plotH = h - margin * 2;
-      const centerY = h / 2;
-
-      // Draw Grid & Axes
-      ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(margin, centerY);
-      ctx.lineTo(w - margin, centerY);
-      ctx.moveTo(margin, margin);
-      ctx.lineTo(margin, h - margin);
-      ctx.stroke();
-
-      // Axis Labels
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = `${12 * window.devicePixelRatio}px Inter`;
-      ctx.fillText('Position x [m]', w - margin - 80, centerY + 25);
-      ctx.fillText('Displacement y [m]', margin - 40, margin - 15);
-
-      // Wave plot
-      const maxDist = 3 * lam;
-      const k = 2 * Math.PI / lam;
-      const omega = 2 * Math.PI / T;
-
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 3 * window.devicePixelRatio;
-      ctx.beginPath();
-
-      for (let px = 0; px <= plotW; px++) {
-        const xVal = (px / plotW) * maxDist;
-        const yVal = A * Math.sin(k * xVal - omega * t);
-        const py = centerY - (yVal / 2.5) * (plotH / 2);
-        if (px === 0) ctx.moveTo(margin + px, py);
-        else ctx.lineTo(margin + px, py);
-      }
-      ctx.stroke();
-
-      // Draw Wavelength Arrow
-      const crest1X = (lam / 4) / maxDist * plotW + margin;
-      const crest2X = (5 * lam / 4) / maxDist * plotW + margin;
-      const crestY = centerY - (A / 2.5) * (plotH / 2);
-
-      if (crest2X < w - margin) {
-        ctx.strokeStyle = '#4ade80';
-        ctx.lineWidth = 2 * window.devicePixelRatio;
-        ctx.beginPath();
-        ctx.moveTo(crest1X, crestY - 15);
-        ctx.lineTo(crest2X, crestY - 15);
-        ctx.stroke();
-
-        ctx.fillStyle = '#4ade80';
-        ctx.font = `bold ${13 * window.devicePixelRatio}px Inter`;
-        ctx.fillText(`Wavelength λ = ${lam.toFixed(1)}m`, (crest1X + crest2X) / 2 - 60, crestY - 25);
-      }
+      updateFormula();
+      drawAll();
     }
 
-    function drawTemporal() {
-      const w = canvasTemporal.width;
-      const h = canvasTemporal.height;
-      const ctx = ctxTemporal;
+    function updateParamsFromFreq(newFreq, syncNumInput = true) {
+      newFreq = Math.max(0.1, Math.min(15.0, newFreq));
+      const newPeriod = 1.0 / newFreq;
 
-      const A = parseFloat(sliderA.value);
-      const lam = parseFloat(sliderLam.value);
-      const T = parseFloat(sliderT.value);
+      sliderFreq.value = newFreq;
+      valFreq.textContent = `${newFreq.toFixed(2)} Hz`;
+      if (syncNumInput) numFreq.value = newFreq.toFixed(2);
 
-      ctx.clearRect(0, 0, w, h);
+      sliderPeriod.value = newPeriod.toFixed(3);
+      numPeriod.value = newPeriod.toFixed(3);
+      valPeriod.textContent = `${newPeriod.toFixed(2)} s`;
 
-      const margin = 50;
-      const plotW = w - margin * 2;
-      const plotH = h - margin * 2;
-      const centerY = h / 2;
-
-      // Draw Grid & Axes
-      ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(margin, centerY);
-      ctx.lineTo(w - margin, centerY);
-      ctx.moveTo(margin, margin);
-      ctx.lineTo(margin, h - margin);
-      ctx.stroke();
-
-      // Axis Labels
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = `${12 * window.devicePixelRatio}px Inter`;
-      ctx.fillText('Time t [s]', w - margin - 60, centerY + 25);
-      ctx.fillText('Displacement y [m]', margin - 40, margin - 15);
-
-      const maxTime = 3 * T;
-      const omega = 2 * Math.PI / T;
-
-      ctx.strokeStyle = '#fb7185';
-      ctx.lineWidth = 3 * window.devicePixelRatio;
-      ctx.beginPath();
-
-      for (let pt = 0; pt <= plotW; pt++) {
-        const tVal = (pt / plotW) * maxTime;
-        const yVal = A * Math.sin(-omega * tVal);
-        const py = centerY - (yVal / 2.5) * (plotH / 2);
-        if (pt === 0) ctx.moveTo(margin + pt, py);
-        else ctx.lineTo(margin + pt, py);
-      }
-      ctx.stroke();
-
-      // Draw Period Arrow
-      const t1X = (3 * T / 4) / maxTime * plotW + margin;
-      const t2X = (7 * T / 4) / maxTime * plotW + margin;
-      const peakY = centerY - (A / 2.5) * (plotH / 2);
-
-      if (t2X < w - margin) {
-        ctx.strokeStyle = '#4ade80';
-        ctx.lineWidth = 2 * window.devicePixelRatio;
-        ctx.beginPath();
-        ctx.moveTo(t1X, peakY - 15);
-        ctx.lineTo(t2X, peakY - 15);
-        ctx.stroke();
-
-        ctx.fillStyle = '#4ade80';
-        ctx.font = `bold ${13 * window.devicePixelRatio}px Inter`;
-        ctx.fillText(`Period T = ${T.toFixed(1)}s`, (t1X + t2X) / 2 - 45, peakY - 25);
-      }
+      updateFormula();
+      drawAll();
     }
 
-    function updateCalculations() {
-      const A = parseFloat(sliderA.value);
-      const lam = parseFloat(sliderLam.value);
-      const T = parseFloat(sliderT.value);
+    function updateParamsFromPeriod(newPeriod, syncNumInput = true) {
+      newPeriod = Math.max(0.067, Math.min(5.0, newPeriod));
+      const newFreq = 1.0 / newPeriod;
 
-      valA.textContent = `${A.toFixed(1)} m`;
-      valLam.textContent = `${lam.toFixed(1)} m`;
-      valT.textContent = `${T.toFixed(1)} s`;
-      valFixedT.textContent = `${parseFloat(sliderFixedT.value).toFixed(1)} s`;
+      sliderPeriod.value = newPeriod.toFixed(3);
+      valPeriod.textContent = `${newPeriod.toFixed(2)} s`;
+      if (syncNumInput) numPeriod.value = newPeriod.toFixed(3);
 
-      const speed = lam / T;
-      const freq = 1 / T;
-      const k = (2 * Math.PI) / lam;
-      const omega = (2 * Math.PI) / T;
+      sliderFreq.value = newFreq.toFixed(2);
+      numFreq.value = newFreq.toFixed(2);
+      valFreq.textContent = `${newFreq.toFixed(2)} Hz`;
 
-      calcSpeed.textContent = speed.toFixed(2);
-      calcFreq.textContent = freq.toFixed(2);
-      calcK.textContent = k.toFixed(2);
-      calcOmega.textContent = omega.toFixed(2);
+      updateFormula();
+      drawAll();
     }
 
-    function animate(timestamp) {
-      if (!lastTimestamp) lastTimestamp = timestamp;
-      const dt = (timestamp - lastTimestamp) / 1000;
-      lastTimestamp = timestamp;
-
-      if (isPlaying) {
-        animTime += dt;
-        sliderFixedT.value = (animTime % 10).toFixed(1);
-        valFixedT.textContent = `${parseFloat(sliderFixedT.value).toFixed(1)} s`;
-      }
-
-      updateCalculations();
-      drawSpatial();
-      drawTemporal();
-
-      requestAnimationFrame(animate);
-    }
-
-    btnPlayPause.addEventListener('click', () => {
-      isPlaying = !isPlaying;
-      btnPlayPause.textContent = isPlaying ? 'Pause Animation' : 'Play Animation';
+    // Event Listeners for Sliders & Number Input Typing
+    // Amplitude A
+    sliderA.addEventListener('input', () => {
+      const A = parseFloat(sliderA.value) || 1.0;
+      numA.value = A.toFixed(2);
+      valA.textContent = A.toFixed(2);
+      updateFormula();
+      drawAll();
     });
 
-    btnReset.addEventListener('click', () => {
-      sliderA.value = 1.0;
-      sliderLam.value = 4.0;
-      sliderT.value = 2.0;
-      sliderFixedT.value = 0.0;
-      animTime = 0;
-      isPlaying = true;
-      btnPlayPause.textContent = 'Pause Animation';
+    numA.addEventListener('input', () => {
+      const valStr = numA.value;
+      if (valStr === '' || valStr === '.') return;
+      const A = parseFloat(valStr);
+      if (!isNaN(A)) {
+        sliderA.value = A;
+        valA.textContent = A.toFixed(2);
+        updateFormula();
+        drawAll();
+      }
     });
 
-    [sliderA, sliderLam, sliderT, sliderFixedT].forEach(s => {
-      s.addEventListener('input', () => {
-        if (s === sliderFixedT) isPlaying = false;
-        btnPlayPause.textContent = isPlaying ? 'Pause Animation' : 'Play Animation';
-        updateCalculations();
-        drawSpatial();
-        drawTemporal();
+    numA.addEventListener('blur', () => {
+      let A = parseFloat(numA.value);
+      if (isNaN(A)) A = 1.0;
+      A = Math.max(0.1, Math.min(5.0, A));
+      numA.value = A.toFixed(2);
+      sliderA.value = A;
+      valA.textContent = A.toFixed(2);
+      updateFormula();
+      drawAll();
+    });
+
+    // Frequency f
+    sliderFreq.addEventListener('input', () => {
+      updateParamsFromFreq(parseFloat(sliderFreq.value), true);
+    });
+
+    numFreq.addEventListener('input', () => {
+      const valStr = numFreq.value;
+      if (valStr === '' || valStr === '.') return;
+      const f = parseFloat(valStr);
+      if (!isNaN(f) && f > 0) {
+        updateParamsFromFreq(f, false);
+      }
+    });
+
+    numFreq.addEventListener('blur', () => {
+      let f = parseFloat(numFreq.value);
+      if (isNaN(f)) f = 1.0;
+      f = Math.max(0.1, Math.min(15.0, f));
+      updateParamsFromFreq(f, true);
+    });
+
+    // Period T
+    sliderPeriod.addEventListener('input', () => {
+      updateParamsFromPeriod(parseFloat(sliderPeriod.value), true);
+    });
+
+    numPeriod.addEventListener('input', () => {
+      const valStr = numPeriod.value;
+      if (valStr === '' || valStr === '.') return;
+      const T = parseFloat(valStr);
+      if (!isNaN(T) && T > 0) {
+        updateParamsFromPeriod(T, false);
+      }
+    });
+
+    numPeriod.addEventListener('blur', () => {
+      let T = parseFloat(numPeriod.value);
+      if (isNaN(T)) T = 1.0;
+      T = Math.max(0.067, Math.min(5.0, T));
+      updateParamsFromPeriod(T, true);
+    });
+
+    // Phase phi
+    sliderPhase.addEventListener('input', () => {
+      const phi = parseFloat(sliderPhase.value) || 0;
+      numPhase.value = phi;
+      valPhase.textContent = `${phi}°`;
+      updateFormula();
+      drawAll();
+    });
+
+    numPhase.addEventListener('input', () => {
+      const valStr = numPhase.value;
+      if (valStr === '' || valStr === '-') return;
+      const phi = parseFloat(valStr);
+      if (!isNaN(phi)) {
+        sliderPhase.value = phi;
+        valPhase.textContent = `${phi}°`;
+        updateFormula();
+        drawAll();
+      }
+    });
+
+    numPhase.addEventListener('blur', () => {
+      let phi = parseFloat(numPhase.value);
+      if (isNaN(phi)) phi = 0;
+      phi = Math.max(0, Math.min(360, phi));
+      numPhase.value = phi;
+      sliderPhase.value = phi;
+      valPhase.textContent = `${phi}°`;
+      updateFormula();
+      drawAll();
+    });
+
+    // Helper to evaluate waveform value at time t
+    function getWaveVal(wave, tVal) {
+      if (wave.isComposite) {
+        let sum = 0;
+        wave.components.forEach(c => {
+          const phiRad = (c.phi * Math.PI) / 180.0;
+          sum += c.A * Math.sin(2 * Math.PI * c.f * tVal + phiRad);
+        });
+        return sum;
+      } else {
+        const phiRad = (wave.phi * Math.PI) / 180.0;
+        return wave.A * Math.sin(2 * Math.PI * wave.f * tVal + phiRad);
+      }
+    }
+
+    // Stash Management
+    btnStash.addEventListener('click', () => {
+      const A = parseFloat(sliderA.value);
+      const f = parseFloat(sliderFreq.value);
+      const T = 1.0 / f;
+      const phi = parseFloat(sliderPhase.value);
+      const color = COLOR_PALETTE[(stashedWaves.length) % COLOR_PALETTE.length];
+
+      const wave = {
+        id: nextWaveId++,
+        name: `파형 #${nextWaveId - 1}`,
+        A: A,
+        f: f,
+        T: T,
+        phi: phi,
+        color: color,
+        checked: true
+      };
+
+      stashedWaves.push(wave);
+      renderStashList();
+    });
+
+    btnSaveCombined.addEventListener('click', () => {
+      const checkedWaves = stashedWaves.filter(w => w.checked);
+      const targets = (checkedWaves.length > 0) ? checkedWaves : activeLoadedWaves;
+
+      if (targets.length === 0) {
+        alert('합성 파형으로 저장할 구성 파형들을 임시 목록에서 선택(체크)해주세요.');
+        return;
+      }
+
+      const components = [];
+      targets.forEach(w => {
+        if (w.isComposite) {
+          components.push(...w.components);
+        } else {
+          components.push({ A: w.A, f: w.f, phi: w.phi });
+        }
       });
+
+      const color = COLOR_PALETTE[stashedWaves.length % COLOR_PALETTE.length];
+      const combinedWave = {
+        id: nextWaveId++,
+        name: `합성 파형 #${nextWaveId - 1}`,
+        isComposite: true,
+        components: components,
+        color: color,
+        checked: true
+      };
+
+      stashedWaves.push(combinedWave);
+      renderStashList();
     });
 
-    requestAnimationFrame(animate);
+    function resetToLiveMode() {
+      activeLoadedWaves = [];
+      isCombinedMode = false;
+      hasRunFFT = false;
+
+      sliderA.value = 1.0;
+      sliderFreq.value = 1.0;
+      updateParamsFromFreq(1.0);
+      sliderPhase.value = 0;
+
+      timeChartMode.textContent = '단일 실시간 파형 모드';
+      fftChartStatus.textContent = 'FFT 분석 대기 중';
+
+      syncInputs();
+      drawAll();
+    }
+
+    btnReset.addEventListener('click', resetToLiveMode);
+    btnResetHeader.addEventListener('click', resetToLiveMode);
+
+    function renderStashList() {
+      stashList.innerHTML = '';
+      stashCount.textContent = `${stashedWaves.length}개 저장됨`;
+
+      stashedWaves.forEach((wave) => {
+        const item = document.createElement('div');
+        item.className = 'stash-item';
+
+        const detailsText = wave.isComposite 
+          ? `합성 파형 (${wave.components.length}개 성분)`
+          : `A=${wave.A.toFixed(2)}, f=${wave.f.toFixed(2)}Hz, φ=${wave.phi}°`;
+
+        item.innerHTML = `
+          <div class="stash-left">
+            <input type="checkbox" data-id="${wave.id}" ${wave.checked ? 'checked' : ''}>
+            <span class="stash-color-badge" style="background:${wave.color};"></span>
+            <div class="stash-info">
+              <div class="stash-name">${wave.name}</div>
+              <div class="stash-details">${detailsText}</div>
+            </div>
+          </div>
+        `;
+
+        const chk = item.querySelector('input[type="checkbox"]');
+        chk.addEventListener('change', (e) => {
+          wave.checked = e.target.checked;
+        });
+
+        stashList.appendChild(item);
+      });
+    }
+
+    chkSelectAll.addEventListener('change', (e) => {
+      const isChecked = e.target.checked;
+      stashedWaves.forEach(w => w.checked = isChecked);
+      renderStashList();
+    });
+
+    btnDeleteSelected.addEventListener('click', () => {
+      stashedWaves = stashedWaves.filter(w => !w.checked);
+      renderStashList();
+      activeLoadedWaves = activeLoadedWaves.filter(w => stashedWaves.some(sw => sw.id === w.id));
+      drawAll();
+    });
+
+    btnLoadSelected.addEventListener('click', () => {
+      const checkedWaves = stashedWaves.filter(w => w.checked);
+      if (checkedWaves.length === 0) {
+        alert('불러올 파형을 선택해주세요.');
+        return;
+      }
+      activeLoadedWaves = checkedWaves.map(w => ({ ...w }));
+      isCombinedMode = false;
+      hasRunFFT = false;
+      timeChartMode.textContent = `선택된 ${activeLoadedWaves.length}개 파형 로드됨`;
+      drawAll();
+    });
+
+    btnCombine.addEventListener('click', () => {
+      const checkedWaves = stashedWaves.filter(w => w.checked);
+      if (checkedWaves.length === 0) {
+        alert('합성할 파형을 먼저 선택해주세요.');
+        return;
+      }
+      activeLoadedWaves = checkedWaves.map(w => ({ ...w }));
+      isCombinedMode = true;
+      hasRunFFT = false;
+      timeChartMode.textContent = `선택된 ${activeLoadedWaves.length}개 파형 합성 모드`;
+      drawAll();
+    });
+
+    btnFFT.addEventListener('click', () => {
+      const checkedWaves = stashedWaves.filter(w => w.checked);
+      if (checkedWaves.length === 0 && activeLoadedWaves.length === 0) {
+        alert('FFT 분석을 실행할 파형을 선택하거나 저장함에서 불러와주세요.');
+        return;
+      }
+      if (activeLoadedWaves.length === 0) {
+        activeLoadedWaves = checkedWaves.map(w => ({ ...w }));
+      }
+      hasRunFFT = true;
+      fftChartStatus.textContent = 'FFT 분석 완료';
+      drawAll();
+    });
+
+    // Pure JS Cooley-Tukey Radix-2 FFT Engine
+    function runFFT(signalValues) {
+      const len = signalValues.length;
+      const re = new Float64Array(signalValues);
+      const im = new Float64Array(len);
+
+      // Bit reversal
+      let j = 0;
+      for (let i = 0; i < len - 1; i++) {
+        if (i < j) {
+          const tempR = re[i]; re[i] = re[j]; re[j] = tempR;
+          const tempI = im[i]; im[i] = im[j]; im[j] = tempI;
+        }
+        let k = len >> 1;
+        while (k <= j) {
+          j -= k;
+          k >>= 1;
+        }
+        j += k;
+      }
+
+      // Computation
+      for (let l = 2; l <= len; l <<= 1) {
+        const halfLen = l >> 1;
+        const angle = -2 * Math.PI / l;
+        const wStepR = Math.cos(angle);
+        const wStepI = Math.sin(angle);
+        for (let i = 0; i < len; i += l) {
+          let wR = 1, wI = 0;
+          for (let k = 0; k < halfLen; k++) {
+            const posE = i + k;
+            const posO = i + k + halfLen;
+            const uR = re[posE], uI = im[posE];
+            const vR = re[posO] * wR - im[posO] * wI;
+            const vI = re[posO] * wI + im[posO] * wR;
+            re[posE] = uR + vR; im[posE] = uI + vI;
+            re[posO] = uR - vR; im[posO] = uI - vI;
+            const nextWR = wR * wStepR - wI * wStepI;
+            const nextWI = wR * wStepI + wI * wStepR;
+            wR = nextWR; wI = nextWI;
+          }
+        }
+      }
+
+      // Magnitude Spectrum (0 ~ fs/2)
+      const halfN = len >> 1;
+      const amps = new Float64Array(halfN);
+      for (let i = 0; i < halfN; i++) {
+        const mag = Math.sqrt(re[i] * re[i] + im[i] * im[i]);
+        amps[i] = (i === 0) ? (mag / len) : (2.0 * mag / len);
+      }
+      return amps;
+    }
+
+    // Main Drawing Function
+    function drawAll() {
+      drawTimeDomain();
+      drawFFTDomain();
+    }
+
+    function drawTimeDomain() {
+      const w = canvasTime.width;
+      const h = canvasTime.height;
+      const ctx = ctxTime;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const marginL = 55 * window.devicePixelRatio;
+      const marginR = 30 * window.devicePixelRatio;
+      const marginT = 30 * window.devicePixelRatio;
+      const marginB = 45 * window.devicePixelRatio;
+
+      const plotW = w - marginL - marginR;
+      const plotH = h - marginT - marginB;
+      const centerY = marginT + plotH / 2;
+
+      // Draw Grid & Axes
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1 * window.devicePixelRatio;
+
+      // Horizontal reference y = 0
+      ctx.beginPath();
+      ctx.moveTo(marginL, centerY);
+      ctx.lineTo(w - marginR, centerY);
+      ctx.stroke();
+
+      // Axis Box / Spines
+      ctx.strokeStyle = '#334155';
+      ctx.strokeRect(marginL, marginT, plotW, plotH);
+
+      // Ticks & Labels
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = `${11 * window.devicePixelRatio}px Inter`;
+      ctx.textAlign = 'center';
+
+      // X-axis ticks (Time 0 ~ 4s)
+      for (let sec = 0; sec <= 4; sec++) {
+        const px = marginL + (sec / 4.0) * plotW;
+        ctx.beginPath();
+        ctx.moveTo(px, marginT + plotH);
+        ctx.lineTo(px, marginT + plotH + 5 * window.devicePixelRatio);
+        ctx.stroke();
+        ctx.fillText(`${sec}s`, px, marginT + plotH + 20 * window.devicePixelRatio);
+      }
+
+      // Y-axis ticks (-5 ~ +5)
+      const maxRangeY = 5.0;
+      ctx.textAlign = 'right';
+      for (let yVal = -4; yVal <= 4; yVal += 2) {
+        const py = centerY - (yVal / maxRangeY) * (plotH / 2);
+        ctx.beginPath();
+        ctx.moveTo(marginL - 5 * window.devicePixelRatio, py);
+        ctx.lineTo(marginL, py);
+        ctx.stroke();
+        ctx.fillText(yVal.toFixed(1), marginL - 8 * window.devicePixelRatio, py + 4 * window.devicePixelRatio);
+      }
+
+      ctx.fillText('Time (s)', w - marginR, marginT + plotH + 35 * window.devicePixelRatio);
+      ctx.fillText('Amplitude', marginL - 10 * window.devicePixelRatio, marginT - 12 * window.devicePixelRatio);
+
+      // Determine which waves to plot
+      legendTime.innerHTML = '';
+
+      if (activeLoadedWaves.length === 0) {
+        // Live Single Wave Mode
+        timeChartMode.textContent = '단일 실시간 파형 모드';
+
+        const A = parseFloat(sliderA.value);
+        const f = parseFloat(sliderFreq.value);
+        const phiRad = (parseFloat(sliderPhase.value) * Math.PI) / 180.0;
+
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5 * window.devicePixelRatio;
+        ctx.beginPath();
+
+        for (let i = 0; i < N; i++) {
+          const tVal = (i / N) * duration;
+          const yVal = A * Math.sin(2 * Math.PI * f * tVal + phiRad);
+          const px = marginL + (tVal / duration) * plotW;
+          const py = centerY - (yVal / maxRangeY) * (plotH / 2);
+
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        legendTime.innerHTML = `
+          <div class="legend-item">
+            <div class="legend-color" style="background:#38bdf8;"></div>
+            <span>실시간 파형 (A=${A.toFixed(2)}, f=${f.toFixed(2)}Hz)</span>
+          </div>
+        `;
+      } else if (!isCombinedMode) {
+        // Multi-wave Loaded Mode (Plot each separately)
+        activeLoadedWaves.forEach(wave => {
+          ctx.strokeStyle = wave.color;
+          ctx.lineWidth = 2 * window.devicePixelRatio;
+          ctx.beginPath();
+
+          for (let i = 0; i < N; i++) {
+            const tVal = (i / N) * duration;
+            const yVal = getWaveVal(wave, tVal);
+            const px = marginL + (tVal / duration) * plotW;
+            const py = centerY - (yVal / maxRangeY) * (plotH / 2);
+
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+
+          const labelStr = wave.isComposite
+            ? `${wave.name} (합성 ${wave.components.length}개 성분)`
+            : `${wave.name} (A=${wave.A.toFixed(2)}, f=${wave.f.toFixed(2)}Hz)`;
+
+          legendTime.innerHTML += `
+            <div class="legend-item">
+              <div class="legend-color" style="background:${wave.color};"></div>
+              <span>${labelStr}</span>
+            </div>
+          `;
+        });
+      } else {
+        // Combined Summation Mode
+        // Draw individual thin background waves
+        activeLoadedWaves.forEach(wave => {
+          ctx.strokeStyle = wave.color;
+          ctx.lineWidth = 1 * window.devicePixelRatio;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+
+          for (let i = 0; i < N; i++) {
+            const tVal = (i / N) * duration;
+            const yVal = getWaveVal(wave, tVal);
+            const px = marginL + (tVal / duration) * plotW;
+            const py = centerY - (yVal / maxRangeY) * (plotH / 2);
+
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+        });
+
+        // Draw Bold Composite Sum Wave
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 2.8 * window.devicePixelRatio;
+        ctx.beginPath();
+
+        for (let i = 0; i < N; i++) {
+          const tVal = (i / N) * duration;
+          let ySum = 0;
+          activeLoadedWaves.forEach(w => {
+            ySum += getWaveVal(w, tVal);
+          });
+          const px = marginL + (tVal / duration) * plotW;
+          const py = centerY - (ySum / maxRangeY) * (plotH / 2);
+
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        legendTime.innerHTML = `
+          <div class="legend-item">
+            <div class="legend-color" style="background:#f8fafc;"></div>
+            <span>합성 파형 (Combined Sum Wave)</span>
+          </div>
+        `;
+        activeLoadedWaves.forEach(w => {
+          legendTime.innerHTML += `
+            <div class="legend-item">
+              <div class="legend-color" style="background:${w.color};"></div>
+              <span>${w.name} 성분</span>
+            </div>
+          `;
+        });
+      }
+    }
+
+    function drawFFTDomain() {
+      const w = canvasFFT.width;
+      const h = canvasFFT.height;
+      const ctx = ctxFFT;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const marginL = 55 * window.devicePixelRatio;
+      const marginR = 30 * window.devicePixelRatio;
+      const marginT = 30 * window.devicePixelRatio;
+      const marginB = 45 * window.devicePixelRatio;
+
+      const plotW = w - marginL - marginR;
+      const plotH = h - marginT - marginB;
+
+      // Axis Box
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1 * window.devicePixelRatio;
+      ctx.strokeRect(marginL, marginT, plotW, plotH);
+
+      const maxFreqView = 15.0; // 0 ~ 15 Hz view
+      const maxAmpView = 2.5;   // 0 ~ 2.5 Spectral amplitude
+
+      // X-axis ticks (0 ~ 15 Hz)
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = `${11 * window.devicePixelRatio}px Inter`;
+      ctx.textAlign = 'center';
+
+      for (let freq = 0; freq <= 15; freq += 3) {
+        const px = marginL + (freq / maxFreqView) * plotW;
+        ctx.beginPath();
+        ctx.moveTo(px, marginT + plotH);
+        ctx.lineTo(px, marginT + plotH + 5 * window.devicePixelRatio);
+        ctx.stroke();
+        ctx.fillText(`${freq}Hz`, px, marginT + plotH + 20 * window.devicePixelRatio);
+      }
+
+      // Y-axis ticks (0.0 ~ 2.5)
+      ctx.textAlign = 'right';
+      for (let ampVal = 0.0; ampVal <= 2.5; ampVal += 0.5) {
+        const py = marginT + plotH - (ampVal / maxAmpView) * plotH;
+        ctx.beginPath();
+        ctx.moveTo(marginL - 5 * window.devicePixelRatio, py);
+        ctx.lineTo(marginL, py);
+        ctx.stroke();
+        ctx.fillText(ampVal.toFixed(1), marginL - 8 * window.devicePixelRatio, py + 4 * window.devicePixelRatio);
+      }
+
+      ctx.fillText('Frequency (Hz)', w - marginR, marginT + plotH + 35 * window.devicePixelRatio);
+      ctx.fillText('Spectral amplitude', marginL - 10 * window.devicePixelRatio, marginT - 12 * window.devicePixelRatio);
+
+      legendFFT.innerHTML = '';
+
+      if (!hasRunFFT) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = `${13 * window.devicePixelRatio}px Inter`;
+        ctx.textAlign = 'center';
+        ctx.fillText('Analysis Pending: Click "FFT 분석 실행" button', marginL + plotW / 2, marginT + plotH / 2);
+        return;
+      }
+
+      if (activeLoadedWaves.length === 0) {
+        // FFT of Single Live Wave
+        const A = parseFloat(sliderA.value);
+        const f = parseFloat(sliderFreq.value);
+        const phiRad = (parseFloat(sliderPhase.value) * Math.PI) / 180.0;
+
+        const signalVals = new Float64Array(N);
+        for (let i = 0; i < N; i++) {
+          const tVal = (i / N) * duration;
+          signalVals[i] = A * Math.sin(2 * Math.PI * f * tVal + phiRad);
+        }
+
+        const spectrum = runFFT(signalVals);
+
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5 * window.devicePixelRatio;
+        ctx.beginPath();
+
+        const halfN = N / 2;
+        for (let i = 0; i < halfN; i++) {
+          const freqVal = (i / N) * fs;
+          if (freqVal > maxFreqView) break;
+
+          const px = marginL + (freqVal / maxFreqView) * plotW;
+          const py = marginT + plotH - (spectrum[i] / maxAmpView) * plotH;
+
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        legendFFT.innerHTML = `
+          <div class="legend-item">
+            <div class="legend-color" style="background:#38bdf8;"></div>
+            <span>단일 파형 FFT 스펙트럼 (Peak at ${f.toFixed(2)}Hz, Amp=${A.toFixed(2)})</span>
+          </div>
+        `;
+      } else if (!isCombinedMode) {
+        // Multi-wave Spectrum Overlay
+        activeLoadedWaves.forEach(wave => {
+          const signalVals = new Float64Array(N);
+          for (let i = 0; i < N; i++) {
+            const tVal = (i / N) * duration;
+            signalVals[i] = getWaveVal(wave, tVal);
+          }
+
+          const spectrum = runFFT(signalVals);
+
+          ctx.strokeStyle = wave.color;
+          ctx.lineWidth = 2 * window.devicePixelRatio;
+          ctx.beginPath();
+
+          const halfN = N / 2;
+          for (let i = 0; i < halfN; i++) {
+            const freqVal = (i / N) * fs;
+            if (freqVal > maxFreqView) break;
+
+            const px = marginL + (freqVal / maxFreqView) * plotW;
+            const py = marginT + plotH - (spectrum[i] / maxAmpView) * plotH;
+
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+
+          const legendText = wave.isComposite
+            ? `${wave.name} FFT 스펙트럼 (합성 파형)`
+            : `${wave.name} (Peak: ${wave.f.toFixed(2)}Hz, Amp=${wave.A.toFixed(2)})`;
+
+          legendFFT.innerHTML += `
+            <div class="legend-item">
+              <div class="legend-color" style="background:${wave.color};"></div>
+              <span>${legendText}</span>
+            </div>
+          `;
+        });
+      } else {
+        // Combined Sum Wave Spectrum
+        const signalVals = new Float64Array(N);
+        for (let i = 0; i < N; i++) {
+          const tVal = (i / N) * duration;
+          let ySum = 0;
+          activeLoadedWaves.forEach(w => {
+            ySum += getWaveVal(w, tVal);
+          });
+          signalVals[i] = ySum;
+        }
+
+        const spectrum = runFFT(signalVals);
+
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 2.8 * window.devicePixelRatio;
+        ctx.beginPath();
+
+        const halfN = N / 2;
+        for (let i = 0; i < halfN; i++) {
+          const freqVal = (i / N) * fs;
+          if (freqVal > maxFreqView) break;
+
+          const px = marginL + (freqVal / maxFreqView) * plotW;
+          const py = marginT + plotH - (spectrum[i] / maxAmpView) * plotH;
+
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        legendFFT.innerHTML = `
+          <div class="legend-item">
+            <div class="legend-color" style="background:#f8fafc;"></div>
+            <span>합성 파형 FFT 스펙트럼 (Combined FFT)</span>
+          </div>
+        `;
+        activeLoadedWaves.forEach(w => {
+          const infoText = w.isComposite
+            ? `${w.name} 성분`
+            : `${w.name} 피크 (${w.f.toFixed(2)}Hz)`;
+          legendFFT.innerHTML += `
+            <div class="legend-item">
+              <div class="legend-color" style="background:${w.color};"></div>
+              <span>${infoText}</span>
+            </div>
+          `;
+        });
+      }
+    }
+
+    // Initialize
+    updateFormula();
+    resizeCanvases();
   </script>
 </body>
 </html>
