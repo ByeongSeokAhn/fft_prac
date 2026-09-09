@@ -391,34 +391,34 @@
           <label>진폭 (Amplitude, A)</label>
           <div class="input-row">
             <input type="range" id="sliderA" min="0.1" max="5.0" step="0.05" value="1.0">
-            <input type="number" id="numA" min="0.1" max="5.0" step="any" value="1.0">
+            <input type="number" id="numA" min="0.1" max="5.0" step="0.1" value="1.0">
           </div>
         </div>
 
         <!-- Frequency f -->
         <div class="control-group">
-          <label>주파수 (Frequency, f)</label>
+          <label>주파수 (Frequency, f) [Hz]</label>
           <div class="input-row">
             <input type="range" id="sliderFreq" min="0.2" max="15.0" step="0.1" value="1.0">
-            <input type="number" id="numFreq" min="0.2" max="15.0" step="any" value="1.0">
+            <input type="number" id="numFreq" min="0.2" max="15.0" step="0.1" value="1.0">
           </div>
         </div>
 
         <!-- Period T (Auto-linked) -->
         <div class="control-group">
-          <label>주기 (Period, T = 1/f)</label>
+          <label>주기 (Period, T = 1/f) [s]</label>
           <div class="input-row">
             <input type="range" id="sliderPeriod" min="0.067" max="5.0" step="0.01" value="1.0">
-            <input type="number" id="numPeriod" min="0.067" max="5.0" step="any" value="1.0">
+            <input type="number" id="numPeriod" min="0.067" max="5.0" step="0.1" value="1.0">
           </div>
         </div>
 
         <!-- Phase phi -->
         <div class="control-group">
-          <label>위상 (Phase, φ)</label>
+          <label>위상 (Phase, φ) [°]</label>
           <div class="input-row">
             <input type="range" id="sliderPhase" min="0" max="360" step="1" value="0">
-            <input type="number" id="numPhase" min="0" max="360" step="any" value="0">
+            <input type="number" id="numPhase" min="0" max="360" step="0.1" value="0">
           </div>
         </div>
 
@@ -437,37 +437,37 @@
 
         <!-- Sampling Frequency fs -->
         <div class="control-group">
-          <label>샘플링 주파수 (Sampling Frequency, f<sub>s</sub>)</label>
+          <label>샘플링 주파수 (Sampling Frequency, f<sub>s</sub>) [Hz]</label>
           <div class="input-row">
             <input type="range" id="sliderFs" min="0.5" max="50.0" step="0.5" value="10.0">
-            <input type="number" id="numFs" min="0.5" max="50.0" step="any" value="10.0">
+            <input type="number" id="numFs" min="0.5" max="50.0" step="0.1" value="10.0">
           </div>
         </div>
 
         <!-- Sampling Interval dt -->
         <div class="control-group">
-          <label>샘플링 간격 (Sampling Interval, deltat = 1/f<sub>s</sub>)</label>
+          <label>샘플링 간격 (Sampling Interval, Δt = 1/f<sub>s</sub>) [s]</label>
           <div class="input-row">
             <input type="range" id="sliderDt" min="0.02" max="2.0" step="0.005" value="0.100">
-            <input type="number" id="numDt" min="0.02" max="2.0" step="any" value="0.100">
+            <input type="number" id="numDt" min="0.02" max="2.0" step="0.1" value="0.100">
           </div>
         </div>
 
         <!-- Start Time t_start -->
         <div class="control-group">
-          <label>시작 시간 (Start Time, t<sub>start</sub>)</label>
+          <label>시작 시간 (Start Time, t<sub>start</sub>) [s]</label>
           <div class="input-row">
-            <input type="range" id="sliderTStart" min="0.0" max="3.5" step="0.1" value="0.0">
-            <input type="number" id="numTStart" min="0.0" max="3.5" step="any" value="0.0">
+            <input type="range" id="sliderTStart" min="0.0" max="7.5" step="0.1" value="0.0">
+            <input type="number" id="numTStart" min="0.0" max="7.5" step="0.1" value="0.0">
           </div>
         </div>
 
         <!-- Sample Duration T_len -->
         <div class="control-group">
-          <label>샘플 길이 (Sample Duration, T<sub>len</sub>)</label>
+          <label>샘플 길이 (Sample Duration, T<sub>len</sub>) [s]</label>
           <div class="input-row">
-            <input type="range" id="sliderTLen" min="0.1" max="4.0" step="0.1" value="4.0">
-            <input type="number" id="numTLen" min="0.1" max="4.0" step="any" value="4.0">
+            <input type="range" id="sliderTLen" min="0.1" max="8.0" step="0.1" value="8.0">
+            <input type="number" id="numTLen" min="0.1" max="8.0" step="0.1" value="8.0">
           </div>
         </div>
 
@@ -837,7 +837,7 @@
     });
 
     function syncTStartLabels(tVal) {
-      tVal = Math.max(0.0, Math.min(3.5, tVal));
+      tVal = Math.max(0.0, Math.min(7.5, tVal));
       sliderTStart.value = tVal;
       numTStart.value = tVal.toFixed(1);
     }
@@ -862,7 +862,7 @@
     });
 
     function syncTLenLabels(tVal) {
-      tVal = Math.max(0.1, Math.min(4.0, tVal));
+      tVal = Math.max(0.1, Math.min(8.0, tVal));
       sliderTLen.value = tVal;
       numTLen.value = tVal.toFixed(1);
     }
@@ -881,7 +881,7 @@
     });
     numTLen.addEventListener('blur', () => {
       let t = parseFloat(numTLen.value);
-      if (isNaN(t)) t = 4.0;
+      if (isNaN(t)) t = 8.0;
       syncTLenLabels(t);
       drawAll();
     });
@@ -1052,15 +1052,20 @@
     }
 
     btnRunSampling.addEventListener('click', () => {
+      // Time domain sampling constants
+      const duration = 8.0; // 8 seconds default
+      const fs = 256;       // Sampling frequency = 256 Hz
+      const N = 2048;       // N = 8 * 256 = 2048 points (Power of 2 for FFT)
+
       const fsVal = parseFloat(sliderFs.value) || 10.0;
       const tStartVal = parseFloat(sliderTStart.value) || 0.0;
-      const tLenVal = parseFloat(sliderTLen.value) || 4.0;
+      const tLenVal = parseFloat(sliderTLen.value) || 8.0;
 
       const dt = 1.0 / fsVal;
       const times = [];
       const values = [];
 
-      const tEnd = Math.min(4.0, tStartVal + tLenVal);
+      const tEnd = Math.min(8.0, tStartVal + tLenVal);
       for (let t = tStartVal; t <= tEnd + 1e-9; t += dt) {
         times.push(t);
         values.push(getActiveContinuousVal(t));
@@ -1211,6 +1216,11 @@
       sliderFreq.value = 1.0;
       updateParamsFromFreq(1.0);
       sliderPhase.value = 0;
+
+      sliderTStart.value = 0.0;
+      numTStart.value = '0.0';
+      sliderTLen.value = 8.0;
+      numTLen.value = '8.0';
 
       timeChartMode.textContent = '단일 실시간 파형 모드';
       fftChartStatus.textContent = 'FFT 분석 대기 중';
@@ -1407,9 +1417,9 @@
       ctx.font = `${11 * window.devicePixelRatio}px Inter`;
       ctx.textAlign = 'center';
 
-      // X-axis ticks (Time 0 ~ 4s)
-      for (let sec = 0; sec <= 4; sec++) {
-        const px = marginL + (sec / 4.0) * plotW;
+      // X-axis ticks (Time 0 ~ 8s)
+      for (let sec = 0; sec <= 8; sec++) {
+        const px = marginL + (sec / 8.0) * plotW;
         ctx.beginPath();
         ctx.moveTo(px, marginT + plotH);
         ctx.lineTo(px, marginT + plotH + 5 * window.devicePixelRatio);
