@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sine Wave Physics Visualizer: Spatial & Temporal Profiles</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --primary-cyan: #38bdf8;
+      --primary-coral: #fb7185;
+      --accent-green: #4ade80;
+      --accent-amber: #fbbf24;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      max-width: 900px;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary-cyan), var(--primary-coral));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.8rem;
+    }
+
+    .controls-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .control-group label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .control-group label span.val {
+      color: var(--primary-cyan);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--primary-cyan);
+      cursor: pointer;
+    }
+
+    .btn-row {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+
+    button {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: white;
+      border: none;
+      padding: 0.6rem 1.4rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+    }
+
+    .grid-plots {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .plot-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      position: relative;
+    }
+
+    .plot-card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 0.3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .plot-card h2.spatial-title { color: var(--primary-cyan); }
+    .plot-card h2.temporal-title { color: var(--primary-coral); }
+
+    .plot-card p.desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    canvas {
+      width: 100%;
+      height: 280px;
+      background: #090d16;
+      border-radius: 10px;
+      display: block;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .summary-card {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .summary-card h3 {
+      color: var(--accent-amber);
+      margin-bottom: 0.8rem;
+      font-size: 1.1rem;
+    }
+
+    .formula-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      font-size: 0.95rem;
+      color: #cbd5e1;
+    }
+
+    .formula-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 0.8rem 1rem;
+      border-radius: 8px;
+      border-left: 3px solid var(--primary-cyan);
+    }
+
+    .formula-item span.code {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-green);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Sine Wave Physics: Spatial vs. Temporal Representation</h1>
+    <p class="subtitle">Interactive visualization of sinusoidal wave equations: \( y(x, t) = A \sin\left(2\pi \left(\frac{x}{\lambda} - \frac{t}{T}\right)\right) \)</p>
+  </header>
+
+  <div class="container">
+
+    <!-- Controls -->
+    <div class="controls-card">
+      <div class="control-group">
+        <label>Amplitude (A): <span class="val" id="valA">1.0 m</span></label>
+        <input type="range" id="sliderA" min="0.2" max="2.0" step="0.1" value="1.0">
+      </div>
+      <div class="control-group">
+        <label>Wavelength (&lambda;): <span class="val" id="valLam">4.0 m</span></label>
+        <input type="range" id="sliderLam" min="1.0" max="10.0" step="0.5" value="4.0">
+      </div>
+      <div class="control-group">
+        <label>Period (T): <span class="val" id="valT">2.0 s</span></label>
+        <input type="range" id="sliderT" min="0.5" max="5.0" step="0.1" value="2.0">
+      </div>
+      <div class="control-group">
+        <label>Fixed Time (t₀): <span class="val" id="valFixedT">0.0 s</span></label>
+        <input type="range" id="sliderFixedT" min="0" max="10" step="0.1" value="0.0">
+      </div>
+
+      <div class="btn-row">
+        <button id="btnPlayPause">Pause Animation</button>
+        <button id="btnReset">Reset Parameters</button>
+      </div>
+    </div>
+
+    <!-- Plots -->
+    <div class="grid-plots">
+      <!-- Spatial Plot -->
+      <div class="plot-card">
+        <h3 class="spatial-title">1. Spatial Wave Profile: \( y \) vs. Position \( x \)</h3>
+        <p class="desc">Snapshot of the wave across space at fixed time \( t = t_0 \). Distance between adjacent crests is Wavelength (\( \lambda \)).</p>
+        <canvas id="canvasSpatial"></canvas>
+      </div>
+
+      <!-- Temporal Plot -->
+      <div class="plot-card">
+        <h3 class="temporal-title">2. Temporal Wave Profile: \( y \) vs. Time \( t \)</h3>
+        <p class="desc">Oscillation history of a single medium particle over time at fixed position \( x = x_0 = 0 \). Duration of one cycle is Period (\( T \)).</p>
+        <canvas id="canvasTemporal"></canvas>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-card">
+      <h3>Key Physics Formulas</h3>
+      <div class="formula-grid">
+        <div class="formula-item">
+          <strong>Wave Speed (\(v\)):</strong><br>
+          <span class="code">v = &lambda; / T = f &bull; &lambda; = <span id="calcSpeed">2.00</span> m/s</span>
+        </div>
+        <div class="formula-item">
+          <strong>Frequency (\(f\)):</strong><br>
+          <span class="code">f = 1 / T = <span id="calcFreq">0.50</span> Hz</span>
+        </div>
+        <div class="formula-item">
+          <strong>Wavenumber (\(k\)):</strong><br>
+          <span class="code">k = 2&pi; / &lambda; = <span id="calcK">1.57</span> rad/m</span>
+        </div>
+        <div class="formula-item">
+          <strong>Angular Frequency (\(&omega;\)):</strong><br>
+          <span class="code">&omega; = 2&pi; / T = <span id="calcOmega">3.14</span> rad/s</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const canvasSpatial = document.getElementById('canvasSpatial');
+    const ctxSpatial = canvasSpatial.getContext('2d');
+    const canvasTemporal = document.getElementById('canvasTemporal');
+    const ctxTemporal = canvasTemporal.getContext('2d');
+
+    const sliderA = document.getElementById('sliderA');
+    const sliderLam = document.getElementById('sliderLam');
+    const sliderT = document.getElementById('sliderT');
+    const sliderFixedT = document.getElementById('sliderFixedT');
+
+    const valA = document.getElementById('valA');
+    const valLam = document.getElementById('valLam');
+    const valT = document.getElementById('valT');
+    const valFixedT = document.getElementById('valFixedT');
+
+    const calcSpeed = document.getElementById('calcSpeed');
+    const calcFreq = document.getElementById('calcFreq');
+    const calcK = document.getElementById('calcK');
+    const calcOmega = document.getElementById('calcOmega');
+
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    const btnReset = document.getElementById('btnReset');
+
+    let isPlaying = true;
+    let animTime = 0;
+    let lastTimestamp = 0;
+
+    function resizeCanvas() {
+      [canvasSpatial, canvasTemporal].forEach(c => {
+        c.width = c.clientWidth * window.devicePixelRatio;
+        c.height = c.clientHeight * window.devicePixelRatio;
+      });
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function drawSpatial() {
+      const w = canvasSpatial.width;
+      const h = canvasSpatial.height;
+      const ctx = ctxSpatial;
+
+      const A = parseFloat(sliderA.value);
+      const lam = parseFloat(sliderLam.value);
+      const T = parseFloat(sliderT.value);
+      const t = isPlaying ? animTime : parseFloat(sliderFixedT.value);
+
+      ctx.clearRect(0, 0, w, h);
+
+      const margin = 50;
+      const plotW = w - margin * 2;
+      const plotH = h - margin * 2;
+      const centerY = h / 2;
+
+      // Draw Grid & Axes
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, centerY);
+      ctx.lineTo(w - margin, centerY);
+      ctx.moveTo(margin, margin);
+      ctx.lineTo(margin, h - margin);
+      ctx.stroke();
+
+      // Axis Labels
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = `${12 * window.devicePixelRatio}px Inter`;
+      ctx.fillText('Position x [m]', w - margin - 80, centerY + 25);
+      ctx.fillText('Displacement y [m]', margin - 40, margin - 15);
+
+      // Wave plot
+      const maxDist = 3 * lam;
+      const k = 2 * Math.PI / lam;
+      const omega = 2 * Math.PI / T;
+
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 3 * window.devicePixelRatio;
+      ctx.beginPath();
+
+      for (let px = 0; px <= plotW; px++) {
+        const xVal = (px / plotW) * maxDist;
+        const yVal = A * Math.sin(k * xVal - omega * t);
+        const py = centerY - (yVal / 2.5) * (plotH / 2);
+        if (px === 0) ctx.moveTo(margin + px, py);
+        else ctx.lineTo(margin + px, py);
+      }
+      ctx.stroke();
+
+      // Draw Wavelength Arrow
+      const crest1X = (lam / 4) / maxDist * plotW + margin;
+      const crest2X = (5 * lam / 4) / maxDist * plotW + margin;
+      const crestY = centerY - (A / 2.5) * (plotH / 2);
+
+      if (crest2X < w - margin) {
+        ctx.strokeStyle = '#4ade80';
+        ctx.lineWidth = 2 * window.devicePixelRatio;
+        ctx.beginPath();
+        ctx.moveTo(crest1X, crestY - 15);
+        ctx.lineTo(crest2X, crestY - 15);
+        ctx.stroke();
+
+        ctx.fillStyle = '#4ade80';
+        ctx.font = `bold ${13 * window.devicePixelRatio}px Inter`;
+        ctx.fillText(`Wavelength λ = ${lam.toFixed(1)}m`, (crest1X + crest2X) / 2 - 60, crestY - 25);
+      }
+    }
+
+    function drawTemporal() {
+      const w = canvasTemporal.width;
+      const h = canvasTemporal.height;
+      const ctx = ctxTemporal;
+
+      const A = parseFloat(sliderA.value);
+      const lam = parseFloat(sliderLam.value);
+      const T = parseFloat(sliderT.value);
+
+      ctx.clearRect(0, 0, w, h);
+
+      const margin = 50;
+      const plotW = w - margin * 2;
+      const plotH = h - margin * 2;
+      const centerY = h / 2;
+
+      // Draw Grid & Axes
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, centerY);
+      ctx.lineTo(w - margin, centerY);
+      ctx.moveTo(margin, margin);
+      ctx.lineTo(margin, h - margin);
+      ctx.stroke();
+
+      // Axis Labels
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = `${12 * window.devicePixelRatio}px Inter`;
+      ctx.fillText('Time t [s]', w - margin - 60, centerY + 25);
+      ctx.fillText('Displacement y [m]', margin - 40, margin - 15);
+
+      const maxTime = 3 * T;
+      const omega = 2 * Math.PI / T;
+
+      ctx.strokeStyle = '#fb7185';
+      ctx.lineWidth = 3 * window.devicePixelRatio;
+      ctx.beginPath();
+
+      for (let pt = 0; pt <= plotW; pt++) {
+        const tVal = (pt / plotW) * maxTime;
+        const yVal = A * Math.sin(-omega * tVal);
+        const py = centerY - (yVal / 2.5) * (plotH / 2);
+        if (pt === 0) ctx.moveTo(margin + pt, py);
+        else ctx.lineTo(margin + pt, py);
+      }
+      ctx.stroke();
+
+      // Draw Period Arrow
+      const t1X = (3 * T / 4) / maxTime * plotW + margin;
+      const t2X = (7 * T / 4) / maxTime * plotW + margin;
+      const peakY = centerY - (A / 2.5) * (plotH / 2);
+
+      if (t2X < w - margin) {
+        ctx.strokeStyle = '#4ade80';
+        ctx.lineWidth = 2 * window.devicePixelRatio;
+        ctx.beginPath();
+        ctx.moveTo(t1X, peakY - 15);
+        ctx.lineTo(t2X, peakY - 15);
+        ctx.stroke();
+
+        ctx.fillStyle = '#4ade80';
+        ctx.font = `bold ${13 * window.devicePixelRatio}px Inter`;
+        ctx.fillText(`Period T = ${T.toFixed(1)}s`, (t1X + t2X) / 2 - 45, peakY - 25);
+      }
+    }
+
+    function updateCalculations() {
+      const A = parseFloat(sliderA.value);
+      const lam = parseFloat(sliderLam.value);
+      const T = parseFloat(sliderT.value);
+
+      valA.textContent = `${A.toFixed(1)} m`;
+      valLam.textContent = `${lam.toFixed(1)} m`;
+      valT.textContent = `${T.toFixed(1)} s`;
+      valFixedT.textContent = `${parseFloat(sliderFixedT.value).toFixed(1)} s`;
+
+      const speed = lam / T;
+      const freq = 1 / T;
+      const k = (2 * Math.PI) / lam;
+      const omega = (2 * Math.PI) / T;
+
+      calcSpeed.textContent = speed.toFixed(2);
+      calcFreq.textContent = freq.toFixed(2);
+      calcK.textContent = k.toFixed(2);
+      calcOmega.textContent = omega.toFixed(2);
+    }
+
+    function animate(timestamp) {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const dt = (timestamp - lastTimestamp) / 1000;
+      lastTimestamp = timestamp;
+
+      if (isPlaying) {
+        animTime += dt;
+        sliderFixedT.value = (animTime % 10).toFixed(1);
+        valFixedT.textContent = `${parseFloat(sliderFixedT.value).toFixed(1)} s`;
+      }
+
+      updateCalculations();
+      drawSpatial();
+      drawTemporal();
+
+      requestAnimationFrame(animate);
+    }
+
+    btnPlayPause.addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      btnPlayPause.textContent = isPlaying ? 'Pause Animation' : 'Play Animation';
+    });
+
+    btnReset.addEventListener('click', () => {
+      sliderA.value = 1.0;
+      sliderLam.value = 4.0;
+      sliderT.value = 2.0;
+      sliderFixedT.value = 0.0;
+      animTime = 0;
+      isPlaying = true;
+      btnPlayPause.textContent = 'Pause Animation';
+    });
+
+    [sliderA, sliderLam, sliderT, sliderFixedT].forEach(s => {
+      s.addEventListener('input', () => {
+        if (s === sliderFixedT) isPlaying = false;
+        btnPlayPause.textContent = isPlaying ? 'Pause Animation' : 'Play Animation';
+        updateCalculations();
+        drawSpatial();
+        drawTemporal();
+      });
+    });
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
