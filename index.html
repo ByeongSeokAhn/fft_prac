@@ -1287,11 +1287,18 @@
       }
 
       const components = [];
+      const componentNames = [];
       targets.forEach(w => {
         if (w.isComposite) {
           components.push(...w.components);
+          if (w.componentNames && w.componentNames.length > 0) {
+            componentNames.push(...w.componentNames);
+          } else {
+            componentNames.push(w.name);
+          }
         } else {
           components.push({ A: w.A, f: w.f, phi: w.phi });
+          componentNames.push(w.name || `f=${w.f.toFixed(1)}Hz`);
         }
       });
 
@@ -1301,6 +1308,7 @@
         name: `합성 파형 #${nextWaveId - 1}`,
         isComposite: true,
         components: components,
+        componentNames: componentNames,
         color: color,
         checked: true
       };
@@ -1371,7 +1379,8 @@
         if (wave.isSampled) {
           detailsText = `샘플파형 (fs=${wave.fs.toFixed(1)}Hz, N=${wave.sampleTimes.length}개, Δt=${wave.dt.toFixed(3)}s)`;
         } else if (wave.isComposite) {
-          detailsText = `합성 파형 (${wave.components.length}개 성분)`;
+          const compStr = wave.componentNames ? wave.componentNames.join(', ') : wave.components.map(c => `f=${c.f.toFixed(1)}Hz`).join(', ');
+          detailsText = `합성 파형 (${compStr})`;
         } else {
           detailsText = `A=${wave.A.toFixed(2)}, f=${wave.f.toFixed(2)}Hz, φ=${wave.phi}°`;
         }
@@ -1710,10 +1719,11 @@
             ctx.stroke();
           }
 
+          const compStr = wave.componentNames ? wave.componentNames.join(', ') : (wave.components ? wave.components.map(c => `f=${c.f.toFixed(1)}Hz`).join(', ') : '');
           const labelStr = wave.isSampled
             ? `${wave.name} (fs=${wave.fs.toFixed(1)}Hz, N=${wave.sampleTimes.length}개)`
             : (wave.isComposite
-              ? `${wave.name} (합성 ${wave.components.length}개 성분)`
+              ? `${wave.name} (${compStr})`
               : `${wave.name} (A=${wave.A.toFixed(2)}, f=${wave.f.toFixed(2)}Hz)`);
 
           legendTime.innerHTML += `
@@ -1764,10 +1774,11 @@
         }
         ctx.stroke();
 
+        const combinedCompNames = activeLoadedWaves.map(w => w.name).join(', ');
         legendTime.innerHTML = `
           <div class="legend-item">
             <div class="legend-color" style="background:#f8fafc;"></div>
-            <span>합성 파형 (Combined Sum Wave)</span>
+            <span>합성 파형 (${combinedCompNames})</span>
           </div>
         `;
         activeLoadedWaves.forEach(w => {
@@ -2006,10 +2017,11 @@
             ctx.stroke();
           }
 
+          const compStr = wave.componentNames ? wave.componentNames.join(', ') : (wave.components ? wave.components.map(c => `f=${c.f.toFixed(1)}Hz`).join(', ') : '');
           const legendText = wave.isSampled
             ? `${wave.name} FFT 스펙트럼 (fs=${wave.fs.toFixed(1)}Hz, Δt=${wave.dt.toFixed(3)}s)`
             : (wave.isComposite
-              ? `${wave.name} FFT 스펙트럼 (합성 파형)`
+              ? `${wave.name} FFT 스펙트럼 (${compStr})`
               : `${wave.name} (Peak: ${wave.f.toFixed(2)}Hz, Amp=${wave.A.toFixed(2)})`);
 
           legendFFT.innerHTML += `
@@ -2050,10 +2062,11 @@
         }
         ctx.stroke();
 
+        const combinedCompNames = activeLoadedWaves.map(w => w.name).join(', ');
         legendFFT.innerHTML = `
           <div class="legend-item">
             <div class="legend-color" style="background:#f8fafc;"></div>
-            <span>합성 파형 FFT 스펙트럼 (Combined FFT)</span>
+            <span>합성 파형 FFT 스펙트럼 (${combinedCompNames})</span>
           </div>
         `;
         activeLoadedWaves.forEach(w => {
