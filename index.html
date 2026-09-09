@@ -511,7 +511,7 @@
           <div class="control-group">
             <label><span>샘플링 주파수 (Sampling Frequency, f<sub>s</sub>) [Hz]</span></label>
             <div class="input-row">
-              <input type="range" id="sliderFs" min="0.5" max="50.0" step="0.5" value="10.0">
+              <input type="range" id="sliderFs" min="0.5" max="50.0" step="0.1" value="10.0">
               <input type="number" id="numFs" min="0.5" max="50.0" step="0.1" value="10.0">
             </div>
           </div>
@@ -1147,7 +1147,7 @@
       const fs = 256;       // Sampling frequency = 256 Hz
       const N = 2048;       // N = 8 * 256 = 2048 points (Power of 2 for FFT)
 
-      const fsVal = parseFloat(sliderFs.value) || 10.0;
+      const fsVal = parseFloat(numFs.value) || parseFloat(sliderFs.value) || 10.0;
       const tStartVal = parseFloat(sliderTStart.value) || 0.0;
       const tLenVal = parseFloat(sliderTLen.value) || 8.0;
 
